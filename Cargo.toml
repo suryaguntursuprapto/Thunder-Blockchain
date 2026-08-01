@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/thunder-core",
-    "crates/thunder-consensus",
-    "crates/thunder-network",
-    "crates/thunder-vm",
-    "crates/thunder-lang",
-    "crates/thunder-rpc",
-    "crates/thunder-cli",
+    "Core-Engine/thunder-core",
+    "Core-Engine/thunder-consensus",
+    "Core-Engine/thunder-network",
+    "Core-Engine/thunder-vm",
+    "Core-Engine/thunder-lang",
+    "Core-Engine/thunder-rpc",
+    "Core-Engine/thunder-cli",
 ]
 
 [workspace.package]
