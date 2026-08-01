@@ -1,5 +1,5 @@
 # Build Stage
-FROM rust:1.80-slim AS builder
+FROM rust:slim AS builder
 WORKDIR /app
 
 # Install build dependencies
@@ -12,7 +12,7 @@ COPY . .
 RUN cargo build --release --workspace
 
 # Runtime Stage
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 
 # Install runtime dependencies for networking
