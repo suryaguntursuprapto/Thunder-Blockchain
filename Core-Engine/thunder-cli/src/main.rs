@@ -6,14 +6,13 @@
 // ---------------------------------------------------------------------------
 
 use clap::{Parser, Subcommand};
+
 use std::collections::HashMap;
 
-use thunder_core::crypto::{self, address_to_hex, KeyPair, SerializableKeyPair};
+use thunder_core::crypto::{address_to_hex, KeyPair, SerializableKeyPair};
 use thunder_core::state::Account;
-use thunder_core::transaction::Transaction;
 use thunder_lang::compiler::compile_source;
 use thunder_network::node::{Node, NodeConfig};
-use thunder_rpc::server::{JsonRpcRequest, RpcHandler};
 use thunder_vm::opcode::Instruction;
 use thunder_vm::vm::{ExecutionContext, ThunderVm};
 
@@ -136,7 +135,7 @@ fn main() {
         // ── Node Commands ──────────────────────────────────────────────
         Commands::Node { action } => match action {
             NodeCommands::Start { data_dir, port } => {
-                println!("⚡ Thunder Blockchain v0.1.0");
+                println!("⚡ Thunder Blockchain");
                 println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
                 let key_pair = KeyPair::generate();
@@ -273,7 +272,7 @@ fn main() {
                                 };
 
                                 // Run VM starting at the function entry point.
-                                let mut instructions = compiled.instructions.clone();
+                                let instructions = compiled.instructions.clone();
                                 // Prepend a jump to the function entry.
                                 let mut exec_instructions = vec![
                                     Instruction::with_operand(

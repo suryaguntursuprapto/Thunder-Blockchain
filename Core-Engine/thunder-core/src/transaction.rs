@@ -156,7 +156,7 @@ impl Transaction {
         buf.extend_from_slice(&self.data);
         buf.extend_from_slice(&self.gas_limit.to_le_bytes());
         buf.extend_from_slice(&self.gas_price.to_le_bytes());
-        buf.extend_from_slice(&(self.kind_id() as u8).to_le_bytes());
+        buf.extend_from_slice(&self.kind_id().to_le_bytes());
         buf
     }
 

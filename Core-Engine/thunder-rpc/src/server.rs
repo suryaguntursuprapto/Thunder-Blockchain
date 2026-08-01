@@ -6,13 +6,6 @@
 // ---------------------------------------------------------------------------
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-
-use thunder_core::crypto::{self, address_to_hex, KeyPair};
-use thunder_core::state::{Account, WorldState};
-use thunder_core::block::Block;
-use thunder_core::transaction::Transaction;
 
 // ── JSON-RPC Types ─────────────────────────────────────────────────────────
 

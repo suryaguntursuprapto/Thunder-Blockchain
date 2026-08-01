@@ -152,7 +152,7 @@ impl Compiler {
                 self.compile_expression(condition)?;
 
                 // JumpIf to else branch (placeholder).
-                let jump_else_idx = self.instructions.len();
+                let _jump_else_idx = self.instructions.len();
                 self.emit(Instruction::with_operand(OpCode::Push, 0)); // NOT condition
                 self.emit(Instruction::new(OpCode::Not));
 
@@ -212,11 +212,11 @@ impl Compiler {
                 }
                 self.emit(Instruction::new(OpCode::Return));
             }
-            Statement::Require { condition, message } => {
+            Statement::Require { condition, message: _ } => {
                 self.compile_expression(condition)?;
                 self.emit(Instruction::new(OpCode::Require));
             }
-            Statement::Emit { event_name, args } => {
+            Statement::Emit { event_name: _, args } => {
                 // Push data (last arg or 0).
                 if let Some(last) = args.last() {
                     self.compile_expression(last)?;

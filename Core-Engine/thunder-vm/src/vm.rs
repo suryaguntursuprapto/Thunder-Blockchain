@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use thunder_core::crypto::{self, Address};
 
-use crate::gas::{GasMeter, GasError};
+use crate::gas::GasMeter;
 use crate::opcode::{Instruction, OpCode};
 
 // ── Execution Context ──────────────────────────────────────────────────────

@@ -23,7 +23,7 @@ pub fn compute_merkle_root(hashes: &[Hash]) -> Hash {
 
     while current_level.len() > 1 {
         // Duplicate last element if the level has an odd count.
-        if current_level.len() % 2 != 0 {
+        if !current_level.len().is_multiple_of(2) {
             let last = *current_level.last().unwrap();
             current_level.push(last);
         }
@@ -56,15 +56,15 @@ pub fn generate_proof(hashes: &[Hash], index: usize) -> Vec<MerkleProofNode> {
     let mut idx = index;
 
     while current_level.len() > 1 {
-        if current_level.len() % 2 != 0 {
+        if !current_level.len().is_multiple_of(2) {
             let last = *current_level.last().unwrap();
             current_level.push(last);
         }
 
-        let sibling_idx = if idx % 2 == 0 { idx + 1 } else { idx - 1 };
+        let sibling_idx = if idx.is_multiple_of(2) { idx + 1 } else { idx - 1 };
         proof.push(MerkleProofNode {
             hash: current_level[sibling_idx],
-            is_left: idx % 2 != 0,
+            is_left: !idx.is_multiple_of(2),
         });
 
         // Move to the next level.

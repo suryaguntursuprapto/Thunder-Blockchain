@@ -15,8 +15,12 @@ pub struct Storage {
 impl Storage {
     /// Open (or create) a LevelDB database at the given path.
     pub fn new(path: &str) -> Self {
-        let mut opts = Options::default();
-        opts.create_if_missing = true;
+        std::fs::create_dir_all(path).expect("failed to create storage directory");
+        
+        let opts = Options {
+            create_if_missing: true,
+            ..Default::default()
+        };
         let db = DB::open(Path::new(path), opts).expect("failed to open LevelDB");
         Self { db }
     }

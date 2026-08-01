@@ -119,7 +119,7 @@ impl ValidatorSet {
     /// Get all active validators sorted by stake (descending).
     pub fn active_validators(&self) -> Vec<&Validator> {
         let mut vs: Vec<&Validator> = self.validators.values().filter(|v| v.is_active).collect();
-        vs.sort_by(|a, b| b.stake.cmp(&a.stake));
+        vs.sort_by_key(|b| std::cmp::Reverse(b.stake));
         vs
     }
 

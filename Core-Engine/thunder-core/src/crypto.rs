@@ -9,7 +9,6 @@ use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::fmt;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

@@ -6,8 +6,6 @@
 //  synchronous building blocks.
 // ---------------------------------------------------------------------------
 
-use std::collections::HashMap;
-
 use thunder_core::block::Block;
 use thunder_core::crypto::{self, KeyPair};
 use thunder_core::state::WorldState;

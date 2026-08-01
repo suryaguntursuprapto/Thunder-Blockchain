@@ -31,7 +31,7 @@ impl AbftConsensus {
     /// Create a new aBFT consensus engine for the given validator set.
     pub fn new(validators: Vec<Address>) -> Self {
         let n = validators.len();
-        let supermajority = (n * 2 + 2) / 3; // ceiling of 2n/3
+        let supermajority = (n * 2).div_ceil(3); // ceiling of 2n/3
         Self {
             dag: Dag::new(),
             validators,
@@ -47,7 +47,7 @@ impl AbftConsensus {
     /// An event's round is:
     ///   - 1        if it has no self-parent (first event by this creator)
     ///   - parent_round     if it cannot strongly-see a supermajority of
-    ///                      witnesses in `parent_round`
+    ///     witnesses in `parent_round`
     ///   - parent_round + 1 otherwise
     ///
     /// Also marks each event as a *witness* if it is the first event by its

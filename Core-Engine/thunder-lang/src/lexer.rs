@@ -237,7 +237,7 @@ impl Lexer {
                     self.advance();
                     Ok(tok)
                 } else {
-                    Err(self.error(&format!("unexpected character '&'")))
+                    Err(self.error("unexpected character '&'"))
                 }
             }
 
@@ -248,7 +248,7 @@ impl Lexer {
                     self.advance();
                     Ok(tok)
                 } else {
-                    Err(self.error(&format!("unexpected character '|'")))
+                    Err(self.error("unexpected character '|'"))
                 }
             }
 
