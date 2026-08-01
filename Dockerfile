@@ -1,5 +1,5 @@
 # Build Stage
-FROM rust:1.70-slim as builder
+FROM rust:1.80-slim AS builder
 WORKDIR /app
 
 # Install build dependencies
