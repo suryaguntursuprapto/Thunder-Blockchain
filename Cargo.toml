@@ -32,7 +32,7 @@ hex = "0.4"
 rusty-leveldb = "3.0"
 
 # Networking
-libp2p = { version = "0.54", features = [
+libp2p = { version = "0.56", features = [
     "tokio",
     "gossipsub",
     "kad",
