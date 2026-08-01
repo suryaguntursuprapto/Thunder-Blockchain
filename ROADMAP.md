@@ -40,7 +40,18 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 5: Advanced Smart Contracts (ThunderScript v2)
+## Phase 5: Extreme Scalability Architecture
+*Focus: Pushing the architectural limits to reach 400.000+ TPS.*
+
+- **[ ] Object-Centric Parallel Execution**: Overhaul ThunderVM to process non-overlapping state transactions concurrently across multi-core CPUs (similar to Sui/Aptos).
+- **[ ] Dynamic State Sharding & Subnets**: Split the network into independent parallel shards with trustless cross-shard communication protocols.
+- **[ ] FPGA/GPU Cryptographic Hardware Acceleration**: Batch-verify digital signatures via GPU pipelines to bypass CPU bottlenecks.
+- **[ ] ZK-Stateless Architecture**: Transition from raw LevelDB storage to zero-knowledge state-root validation, forcing clients to prove state rather than making nodes store the world.
+- **[ ] Custom UDP Turbine Networking**: Replace `libp2p` with a custom-built low-latency UDP stream protocol optimized for extreme throughput.
+
+---
+
+## Phase 6: Advanced Smart Contracts (ThunderScript v2)
 *Focus: Expanding the capabilities of the smart contract language.*
 
 - **[ ] Advanced Data Types**: Add support for `struct`, arrays, and nested maps.
@@ -50,7 +61,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 6: Economic Finality & Tokenomics
+## Phase 7: Economic Finality & Tokenomics
 *Focus: Enforcing the monetary policy and economic security of the network.*
 
 - **[ ] Staking Rewards**: Implement algorithmic token issuance and distribution to validators based on uptime and stake weight.
@@ -59,7 +70,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 7: Mainnet Launch
+## Phase 8: Mainnet Launch
 *Focus: Security audits, bug bounties, and the production genesis block.*
 
 - **[ ] Security Audits**: Third-party review of the `thunder-consensus` aBFT logic and `thunder-vm` execution loop.
