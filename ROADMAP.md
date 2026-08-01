@@ -12,7 +12,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 2: Network Maturation & Testnet
+## Phase 2: Network Maturation (v2.0.0) & Testnet
 *Focus: Stabilizing the peer-to-peer layer and ensuring consensus safety in a distributed environment.*
 
 - **[ ] Bootnode Infrastructure**: Implement hardcoded bootnodes to allow dynamic peer discovery beyond Localhost.
@@ -22,7 +22,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 3: Ecosystem Tooling
+## Phase 3: Ecosystem Tooling (v3.0.0)
 *Focus: Creating the accessible infrastructure needed for developers and users to interact with Thunder Blockchain.*
 
 - **[ ] ThunderScan Block Explorer**: A web-based frontend (Next.js/React) connecting to `thunder-rpc` to visualize blocks, transactions, and DAG events in real-time.
@@ -31,7 +31,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 4: Post-Quantum Cryptography (PQC) Upgrade
+## Phase 4: Post-Quantum Cryptography (v4.0.0)
 *Focus: Long-term security and resilience against Quantum Computing algorithms like Shor's.*
 
 - **[ ] CRYSTALS-Dilithium Migration**: Replace `Ed25519` elliptic curve signatures with the NIST-standardized `Dilithium2` lattice-based signature scheme.
@@ -40,7 +40,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 5: Extreme Scalability Architecture
+## Phase 5: Extreme Scalability Architecture (v5.0.0)
 *Focus: Pushing the architectural limits to reach 400.000+ TPS.*
 
 - **[ ] Object-Centric Parallel Execution**: Overhaul ThunderVM to process non-overlapping state transactions concurrently across multi-core CPUs (similar to Sui/Aptos).
@@ -51,7 +51,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 6: Advanced Smart Contracts (ThunderScript v2)
+## Phase 6: Advanced Smart Contracts (v6.0.0)
 *Focus: Expanding the capabilities of the smart contract language.*
 
 - **[ ] Advanced Data Types**: Add support for `struct`, arrays, and nested maps.
@@ -61,7 +61,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 7: Economic Finality & Tokenomics
+## Phase 7: Economic Finality & Tokenomics (v7.0.0)
 *Focus: Enforcing the monetary policy and economic security of the network.*
 
 - **[ ] Staking Rewards**: Implement algorithmic token issuance and distribution to validators based on uptime and stake weight.
@@ -70,7 +70,7 @@ This document outlines the strategic and technical phases intended for the futur
 
 ---
 
-## Phase 8: Mainnet Launch
+## Phase 8: Mainnet Launch (v8.0.0)
 *Focus: Security audits, bug bounties, and the production genesis block.*
 
 - **[ ] Security Audits**: Third-party review of the `thunder-consensus` aBFT logic and `thunder-vm` execution loop.

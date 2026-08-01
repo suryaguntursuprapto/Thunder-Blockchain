@@ -65,13 +65,28 @@ This project uses dual licensing and is being structured into the following modu
 
 ---
 
-## ⚠️ UPCOMING UPGRADES (ROADMAP HIGHLIGHTS)
+## ⚠️ UPCOMING UPGRADES (ROADMAP SUMMARY)
 
-- **Phase 4: Post-Quantum Cryptography**
+- **Phase 2: Network Maturation (v2.0.0)**
+  Implementation of bootnode infrastructure, and syncing protocols for a multi-node docker testnet.
+  
+- **Phase 3: Ecosystem Tooling (v3.0.0)**
+  Launch of `ThunderScan` Block Explorer, Browser Wallet Extensions, and comprehensive Web3 SDK for JS/TS frontends.
+
+- **Phase 4: Post-Quantum Cryptography (v4.0.0)**
   Migrating from Ed25519 to `CRYSTALS-Dilithium` lattice-based signatures to provide mathematical resistance against future quantum computer attacks (e.g., Shor's Algorithm).
   
-- **Phase 5: Extreme Scalability Architecture**
+- **Phase 5: Extreme Scalability Architecture (v5.0.0)**
   Overhauling ThunderVM for **Object-Centric Parallel Execution** capable of scaling up to 400.000+ TPS via Dynamic State Sharding & ZK-Stateless architecture.
+
+- **Phase 6: Advanced Smart Contracts (v6.0.0)**
+  Adding support for custom structs, arrays, cross-contract calls, and standard ABI generation.
+
+- **Phase 7: Economic Finality & Tokenomics (v7.0.0)**
+  Implementation of PoS Staking algorithms, malicious behavior Slashing conditions, and an EIP-1559 base fee burning mechanism.
+
+- **Phase 8: Mainnet Launch (v8.0.0)**
+  Third-party security audits, bug bounties, and locking the production Genesis Block.
 
 ---
 
