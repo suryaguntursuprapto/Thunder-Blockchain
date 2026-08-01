@@ -1,0 +1,18 @@
+[package]
+name = "thunder-consensus"
+description = "Proof of Stake aBFT consensus engine for Thunder Blockchain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde-big-array = "0.5"
+thunder-core = { path = "../thunder-core" }
+serde = { workspace = true }
+bincode = { workspace = true }
+sha2 = { workspace = true }
+rand = { workspace = true }
+hex = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }

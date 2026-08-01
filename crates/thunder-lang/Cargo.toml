@@ -1,0 +1,13 @@
+[package]
+name = "thunder-lang"
+description = "ThunderScript smart contract language compiler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thunder-vm = { path = "../thunder-vm" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+sha2 = { workspace = true }

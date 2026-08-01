@@ -1,0 +1,17 @@
+[package]
+name = "thunder-network"
+description = "P2P networking layer for Thunder Blockchain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thunder-core = { path = "../thunder-core" }
+thunder-consensus = { path = "../thunder-consensus" }
+serde = { workspace = true }
+bincode = { workspace = true }
+libp2p = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+rand = { workspace = true }

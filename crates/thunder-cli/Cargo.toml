@@ -1,0 +1,21 @@
+[package]
+name = "thunder-cli"
+description = "Command-line interface for Thunder Blockchain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thunder-core = { path = "../thunder-core" }
+thunder-consensus = { path = "../thunder-consensus" }
+thunder-network = { path = "../thunder-network" }
+thunder-vm = { path = "../thunder-vm" }
+thunder-lang = { path = "../thunder-lang" }
+thunder-rpc = { path = "../thunder-rpc" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+hex = { workspace = true }

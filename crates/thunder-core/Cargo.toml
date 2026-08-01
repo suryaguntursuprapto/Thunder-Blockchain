@@ -1,0 +1,20 @@
+[package]
+name = "thunder-core"
+description = "Core data structures, cryptography, and storage for Thunder Blockchain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+bincode = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+serde-big-array = "0.5"
+rand = { workspace = true }
+hex = { workspace = true }
+rusty-leveldb = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }

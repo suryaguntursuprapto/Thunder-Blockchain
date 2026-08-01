@@ -1,0 +1,27 @@
+contract Token {
+    state owner: address;
+    state balances: map<address, u64>;
+    state total_supply: u64;
+
+    fn init() {
+        self.owner = caller();
+        self.balances[caller()] = 1000000;
+        self.total_supply = 1000000;
+    }
+
+    fn transfer(to: address, amount: u64) {
+        let sender_bal = self.balances[caller()];
+        require(sender_bal >= amount, "Insufficient balance");
+        self.balances[caller()] = sender_bal - amount;
+        self.balances[to] = self.balances[to] + amount;
+        emit Transfer(caller(), to, amount);
+    }
+
+    fn balance_of(addr: address) -> u64 {
+        return self.balances[addr];
+    }
+
+    fn get_total_supply() -> u64 {
+        return self.total_supply;
+    }
+}
