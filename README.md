@@ -1,122 +1,134 @@
-# ⚡ Thunder Blockchain
+# 🚀 Thunder Blockchain - High-Performance Decentralized Network
 
-A blockchain network built from scratch in **Rust**, featuring **Proof of Stake** consensus with **Asynchronous Byzantine Fault Tolerance (aBFT)**, **LevelDB** storage, and **ThunderScript** — a custom smart contract language.
+![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue.svg) ![Rust](https://img.shields.io/badge/Rust-Production-orange.svg)
 
-📚 **[Read the Whitepaper](WHITEPAPER.md)** | 🗺️ **[View the Development Roadmap](ROADMAP.md)**
+## 🌟 Overview
 
-## Architecture
+Thunder is a high-performance, modular blockchain network built entirely in Rust. It is designed for maximum throughput, leveraging a DAG-based **Virtual Voting (aBFT)** consensus algorithm (Hashgraph-inspired), and features a custom virtual machine (**ThunderVM**) powered by its own deeply-integrated language (**ThunderScript**).
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     thunder-cli (Binary)                        │
-│              CLI interface & node orchestration                 │
-├─────────────┬──────────────┬──────────────┬─────────────────────┤
-│ thunder-rpc │thunder-network│thunder-lang  │                    │
-│  JSON-RPC   │  P2P / Node  │ ThunderScript│                    │
-│   API       │  libp2p      │  Compiler    │                    │
-├─────────────┴──────┬───────┴──────────────┤                    │
-│                    │                      │                    │
-│  thunder-consensus │    thunder-vm        │                    │
-│  PoS + aBFT        │    Stack-based VM    │                    │
-│  DAG Hashgraph     │    Gas metering      │                    │
-├────────────────────┴──────────────────────┴────────────────────┤
-│                       thunder-core                             │
-│         Crypto • Blocks • Transactions • Merkle Tree           │
-│               State • LevelDB Storage                          │
-└────────────────────────────────────────────────────────────────┘
-```
+## 📜 Licensing & Architecture Structure
 
-## Crates
+This project uses dual licensing and is being structured into the following modular components for future scalability:
 
-| Crate | Description |
-|---|---|
-| `thunder-core` | Core data structures, SHA-256/Ed25519 cryptography, Merkle tree, LevelDB storage |
-| `thunder-consensus` | PoS validator management, DAG-based aBFT consensus (Hashgraph-inspired) |
-| `thunder-network` | P2P networking, peer management, node lifecycle |
-| `thunder-vm` | Stack-based virtual machine with 40+ opcodes and gas metering |
-| `thunder-lang` | ThunderScript lexer, parser, AST, and bytecode compiler |
-| `thunder-rpc` | JSON-RPC 2.0 API server |
-| `thunder-cli` | Command-line interface (main binary) |
+### 🔐 Blockchain Infrastructure (BSL 1.1)
 
-## Quick Start
+**Components (Future Architecture):**
+- `Core-Engine/` - Consensus (aBFT), mempool, state management, sharding
+- `development/` - Node implementation, integration, contracts, ThunderVM
+- `audit/` - Security audit tools and compliance tests
+- `governance/` - DAO and governance mechanisms
+- `deployment/` - Node deployment and orchestration
+- `infrastructure/` - RPC API, node infrastructure, backend services
+- `testing/` - Integration tests, testnet tools
+- `monitoring/` - Production monitoring and metrics
 
+**License:** Business Source License 1.1 - Perpetual Proprietary
+**Usage:**
+- ✅ Non-production use (testing, development, evaluation) - FREE
+- ⚠️ Production use requires commercial license
+- 🔒 Proprietary license - remains under BSL 1.1 indefinitely
+
+### 📱 Client Applications (Apache-2.0)
+
+**Components:**
+- `applications/thunder-mobile/` - Mobile wallet
+- `applications/thunder-wallet/` - Browser extension wallet
+- `applications/thunderscan/` - Blockchain explorer
+- `applications/thunder-cli/` - Command-line tools (currently in `Core-Engine`)
+
+**License:** Apache License 2.0
+**Usage:** Fully open-source - use, modify, distribute freely
+
+---
+
+## 🚀 CURRENT FEATURES (v1.0.1)
+
+### ⚡ ThunderVM & ThunderScript
+- **Stack-based VM**: Extremely lightweight execution environment.
+- **Micro-Gas Metering**: Every single opcode executed consumes precise gas to prevent infinite loops and bounded computation.
+- **Custom Compiler**: The `thunder-lang` crate contains a full Lexer, Parser, AST Generator, and Compiler that translates ThunderScript directly to Bytecode.
+
+### 🏛️ Directed Acyclic Graph (DAG) aBFT Consensus
+- **Virtual Voting**: Nodes do not need to send voting messages across the network. By gossiping "Events" containing 2 hashes (Self-Parent & Other-Parent), every node can mathematically calculate what everyone else would vote for.
+- **Leaderless**: No block producers or leaders to attack. All nodes produce events continually.
+- **Absolute Finality**: Transactions reach 100% mathematical finality without probabilistic rollbacks.
+
+### 🔐 Cryptography & Storage
+- **Ed25519 Signatures**: Ultra-fast signature verification using `ed25519-dalek`.
+- **SHA-256 State Roots**: Strong 256-bit cryptographic Merkle Trees for state validation.
+- **LevelDB State**: High-performance persistent raw and state storage (`rusty-leveldb`).
+
+### 🌐 Peer-to-Peer Network
+- **LibP2P Integration**: Secure and modular networking via `libp2p`.
+- **GossipSub Integration**: Decentralized event propagation with mesh networking.
+- **Kademlia DHT**: Node discovery without centralized bootstrap servers.
+
+---
+
+## ⚠️ UPCOMING UPGRADES (ROADMAP HIGHLIGHTS)
+
+- **Phase 4: Post-Quantum Cryptography**
+  Migrating from Ed25519 to `CRYSTALS-Dilithium` lattice-based signatures to provide mathematical resistance against future quantum computer attacks (e.g., Shor's Algorithm).
+  
+- **Phase 5: Extreme Scalability Architecture**
+  Overhauling ThunderVM for **Object-Centric Parallel Execution** capable of scaling up to 400.000+ TPS via Dynamic State Sharding & ZK-Stateless architecture.
+
+---
+
+## �️ QUICK START
+
+### Prerequisites
+- **Rust**: Edition 2021 (v1.70+)
+- **OS**: Linux, macOS, or WSL2
+
+### Building the Project
 ```bash
-# Build the entire project
-cargo build --workspace
-
-# Run all tests
-cargo test --workspace
-
-# Create a wallet
-cargo run -p thunder-cli -- wallet create
-
-# Start a node
-cargo run -p thunder-cli -- node start
-
-# Compile a ThunderScript contract
-cargo run -p thunder-cli -- contract compile examples/token.thunder
-
-# Run a contract function locally
-cargo run -p thunder-cli -- contract run examples/token.thunder -f init
+git clone https://github.com/suryaguntursuprapto/Thunder-Blockchain.git
+cd Thunder-Blockchain
+cargo build --release
 ```
 
-## ThunderScript
+### Running the Node
+```bash
+# Start a node with the CLI
+cargo run -p thunder-cli -- node start --port 9000
 
-ThunderScript is a custom smart contract language designed specifically for Thunder Blockchain.
-
+# Start a JSON-RPC Server
+cargo run -p thunder-rpc
 ```
-contract Token {
-    state owner: address;
-    state balances: map<address, u64>;
 
-    fn init() {
-        self.owner = caller();
-        self.balances[caller()] = 1000000;
-    }
+---
 
-    fn transfer(to: address, amount: u64) {
-        let sender_bal = self.balances[caller()];
-        require(sender_bal >= amount, "Insufficient balance");
-        self.balances[caller()] = sender_bal - amount;
-        self.balances[to] = self.balances[to] + amount;
-        emit Transfer(caller(), to, amount);
-    }
+## 📚 API REFERENCE (JSON-RPC 2.0)
 
-    fn balance_of(addr: address) -> u64 {
-        return self.balances[addr];
-    }
+Nodes expose a JSON-RPC endpoint at `http://127.0.0.1:8080`.
+
+**Check Balance:**
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "get_balance",
+  "params": ["<address>"],
+  "id": 1
 }
 ```
 
-### Language Features
+**Send Transaction:**
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "send_transaction",
+  "params": [{
+    "sender": "<address>",
+    "recipient": "<address>",
+    "amount": 1000,
+    "nonce": 1,
+    "signature": "<hex_signature>"
+  }],
+  "id": 2
+}
+```
 
-- **Contract declarations** with state variables
-- **Types**: `u64`, `bool`, `address`, `string`, `map<K, V>`
-- **Control flow**: `if`/`else`, `while` loops
-- **Functions** with parameters and return types
-- **Built-in functions**: `caller()`, `balance()`, `timestamp()`, `block_height()`, `hash()`
-- **State access**: `self.field`, `self.map[key]`
-- **Safety**: `require(condition, "message")` for assertions
-- **Events**: `emit EventName(args...)` for logging
+---
 
-## Consensus: PoS aBFT
-
-Thunder Blockchain uses a **Hashgraph-inspired** Asynchronous Byzantine Fault Tolerance consensus:
-
-1. **DAG Construction**: Validators create events that reference two parents (self-parent + other-parent)
-2. **Divide Rounds**: Events are assigned round numbers based on strong-seeing
-3. **Decide Fame**: Witnesses are determined to be "famous" via virtual voting
-4. **Find Order**: Famous witnesses establish a total ordering of transactions
-5. **Block Production**: Ordered transactions are applied to state and packed into blocks
-
-This achieves consensus **without explicit message passing** — using virtual voting on the DAG.
-
-### Validator Requirements
-
-- Minimum stake: 1,000 THDR
-- Supermajority: ⅔ of total stake
-- Slashing for double-signing and inactivity
-
-## License
-
-MIT
+⚠️ **Disclaimer:** Thunder Blockchain is experimental software currently in the Testnet phase. Use at your own risk. Always test thoroughly before securing real assets.
