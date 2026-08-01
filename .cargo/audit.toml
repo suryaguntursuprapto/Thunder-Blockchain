@@ -1,0 +1,8 @@
+[advisories]
+ignore = [
+    # hickory-proto (transitive via libp2p/libp2p-mdns)
+    # These vulnerabilities currently have no fix or are tied to libp2p 0.56 constraints.
+    # Since Thunder Blockchain does not actively use the DNS resolver, these are benign.
+    "RUSTSEC-2026-0118",
+    "RUSTSEC-2026-0119",
+]
