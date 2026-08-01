@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # First Bootnode
+  bootnode:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_bootnode
+    ports:
+      - "9000:9000"  # P2P
+      - "8080:8080"  # RPC
+    volumes:
+      - bootnode_data:/app/node_data
+    command: ["--port", "9000"]
+    restart: always
+
+  # Validator 2
+  validator2:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator_2
+    ports:
+      - "9001:9000"
+      - "8081:8080"
+    volumes:
+      - val2_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 3
+  validator3:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator_3
+    ports:
+      - "9002:9000"
+      - "8082:8080"
+    volumes:
+      - val3_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+volumes:
+  bootnode_data:
+  val2_data:
+  val3_data:

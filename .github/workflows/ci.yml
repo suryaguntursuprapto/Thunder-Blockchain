@@ -1,0 +1,59 @@
+name: Thunder Continuous Integration
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    name: Build & Test 🚀
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build Workspace
+        run: cargo build --workspace --verbose
+
+      - name: Run Tests
+        run: cargo test --workspace --verbose
+
+  security_audit:
+    name: Security & Linters 🛡️
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Cargo Clippy
+        run: cargo clippy --workspace -- -D warnings
+
+      - name: Install Cargo Audit
+        run: cargo install cargo-audit
+
+      - name: Run Security Vulnerability Audit
+        run: cargo audit
+
+  docker_build:
+    name: Build Docker Image 🐳
+    needs: [build_and_test, security_audit]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build Docker Image
+        run: docker build -t thunder-node:latest .
