@@ -1,0 +1,6 @@
+target/
+.git/
+.vscode/
+data/
+node_data/
+Cargo.lock

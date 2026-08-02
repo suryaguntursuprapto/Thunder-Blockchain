@@ -3,7 +3,7 @@ FROM rust:slim AS builder
 WORKDIR /app
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y pkg-config libssl-dev cmake build-essential
+RUN apt-get update && apt-get install -y pkg-config libssl-dev cmake build-essential clang libclang-dev
 
 # Copy workspace source code
 COPY . .
