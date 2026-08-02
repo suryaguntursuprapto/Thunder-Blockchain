@@ -68,11 +68,17 @@ pub enum OpCode {
     /// Revert execution (failure, with error message).
     Revert = 0x45,
 
-    // ── Memory ─────────────────────────────────────────────────────────
+    // ── Memory (Local variable array) ──────────────────────────────────
     /// Load local variable by index.
     LoadLocal = 0x50,
     /// Store value to local variable by index.
     StoreLocal = 0x51,
+
+    // ── Memory (Linear Sandbox) ────────────────────────────────────────
+    /// Load 8 bytes (u64) from linear memory at offset.
+    MLoad = 0x52,
+    /// Store 8 bytes (u64) into linear memory at offset.
+    MStore = 0x53,
 
     // ── Contract Storage ───────────────────────────────────────────────
     /// Load from persistent contract storage (key → value).
@@ -94,11 +100,15 @@ pub enum OpCode {
     /// Push the contract's own address.
     SelfAddress = 0x75,
 
-    // ── Data ───────────────────────────────────────────────────────────
-    /// Push a byte array (length-prefixed).
+    // ── Data & Cryptography ────────────────────────────────────────────
+    /// Push a byte array into linear memory, pushes offset + length.
     PushBytes = 0x80,
-    /// Compute SHA-256 hash of top stack value.
+    /// Compute SHA-256 hash of top stack value (legacy).
     Hash = 0x81,
+    /// Compute Keccak-256 Hash of a memory slice (ptr, len → hash value).
+    Keccak256 = 0x82,
+    /// Verify Ed25519 Signature reading from memory (msg_ptr, pubkey_ptr, sig_ptr → 1/0).
+    VerifySig = 0x83,
 
     // ── Events ─────────────────────────────────────────────────────────
     /// Emit a log event (topic_count on stack, then topics, then data).
@@ -144,6 +154,8 @@ impl OpCode {
 
             0x50 => Some(Self::LoadLocal),
             0x51 => Some(Self::StoreLocal),
+            0x52 => Some(Self::MLoad),
+            0x53 => Some(Self::MStore),
 
             0x60 => Some(Self::SLoad),
             0x61 => Some(Self::SStore),
@@ -157,6 +169,8 @@ impl OpCode {
 
             0x80 => Some(Self::PushBytes),
             0x81 => Some(Self::Hash),
+            0x82 => Some(Self::Keccak256),
+            0x83 => Some(Self::VerifySig),
 
             0x90 => Some(Self::Log),
 

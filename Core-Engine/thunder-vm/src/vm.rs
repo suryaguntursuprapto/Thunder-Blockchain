@@ -73,6 +73,8 @@ pub struct ThunderVm {
     pub storage: HashMap<Vec<u8>, Vec<u8>>,
     /// Emitted logs.
     pub logs: Vec<LogEntry>,
+    /// Linear sandbox memory mapped for the current execution.
+    pub memory: Vec<u8>,
     /// Whether execution has halted.
     halted: bool,
     /// Whether execution reverted.
@@ -111,6 +113,7 @@ impl ThunderVm {
             revert_reason: None,
             return_value: None,
             balances,
+            memory: Vec::new(),
         }
     }
 
@@ -286,6 +289,21 @@ impl ThunderVm {
                 let val_bytes = val.to_le_bytes().to_vec();
                 self.storage.insert(key_bytes, val_bytes);
             }
+            // ── Linear Memory ──────────────────────────────────────────
+            OpCode::MLoad => {
+                let ptr = self.pop()? as usize;
+                let bytes = self.read_mem(ptr, 8)?;
+                let val = u64::from_le_bytes(bytes.try_into().unwrap());
+                self.stack.push(val);
+            }
+            OpCode::MStore => {
+                let val = self.pop()?;
+                let ptr = self.pop()? as usize;
+                if ptr + 8 > self.memory.len() {
+                    self.memory.resize(ptr + 8, 0);
+                }
+                self.memory[ptr..ptr + 8].copy_from_slice(&val.to_le_bytes());
+            }
 
             // ── Blockchain Context ─────────────────────────────────────
             OpCode::Caller => {
@@ -330,16 +348,53 @@ impl ThunderVm {
                 self.stack.push(val);
             }
 
-            // ── Data ───────────────────────────────────────────────────
+            // ── Data & Cryptography ────────────────────────────────────
             OpCode::PushBytes => {
-                // Push the length of the byte data.
-                self.stack.push(instr.data.len() as u64);
+                let offset = self.memory.len() as u64;
+                let length = instr.data.len() as u64;
+                self.memory.extend_from_slice(&instr.data);
+                self.stack.push(length);
+                self.stack.push(offset);
             }
             OpCode::Hash => {
                 let val = self.pop()?;
                 let hash = crypto::hash_sha256(&val.to_le_bytes());
                 let hash_val = u64::from_le_bytes(hash[..8].try_into().unwrap());
                 self.stack.push(hash_val);
+            }
+            OpCode::Keccak256 => {
+                // We use SHA-256 for now under the Keccak OpCode name for cross-chain testing.
+                let len = self.pop()? as usize;
+                let ptr = self.pop()? as usize;
+                let bytes = self.read_mem(ptr, len)?;
+                let hash = crypto::hash_sha256(bytes);
+                let hash_val = u64::from_le_bytes(hash[..8].try_into().unwrap());
+                self.stack.push(hash_val);
+            }
+            OpCode::VerifySig => {
+                let sig_ptr = self.pop()? as usize;
+                let pubkey_ptr = self.pop()? as usize;
+                let msg_len = self.pop()? as usize;
+                let msg_ptr = self.pop()? as usize;
+
+                let msg = self.read_mem(msg_ptr, msg_len)?;
+                let pubkey_bytes = self.read_mem(pubkey_ptr, 32)?;
+                let sig_bytes = self.read_mem(sig_ptr, 64)?;
+
+                // ed25519_dalek usage
+                use ed25519_dalek::{PublicKey, Signature, Verifier};
+
+                let valid = if let Ok(pk) = PublicKey::from_bytes(pubkey_bytes) {
+                    if let Ok(sig) = Signature::from_bytes(sig_bytes) {
+                        pk.verify(msg, &sig).is_ok()
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                self.stack.push(if valid { 1 } else { 0 });
             }
 
             // ── Events ─────────────────────────────────────────────────
@@ -372,6 +427,13 @@ impl ThunderVm {
 
     fn pop(&mut self) -> Result<u64, VmError> {
         self.stack.pop().ok_or(VmError::StackUnderflow)
+    }
+
+    fn read_mem(&self, ptr: usize, len: usize) -> Result<&[u8], VmError> {
+        if ptr + len > self.memory.len() {
+            return Err(VmError::MemoryOutOfBounds);
+        }
+        Ok(&self.memory[ptr..ptr + len])
     }
 
     fn binary_op<F>(&mut self, f: F) -> Result<(), VmError>
@@ -415,6 +477,12 @@ pub enum VmError {
 
     #[error("invalid instruction at pc={0}")]
     InvalidInstruction(usize),
+
+    #[error("index out of bounds in linear memory mapping")]
+    MemoryOutOfBounds,
+
+    #[error("failure to parse signature cryptography payload")]
+    InvalidSignature,
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
