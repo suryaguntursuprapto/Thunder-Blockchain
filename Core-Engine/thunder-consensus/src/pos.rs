@@ -112,8 +112,8 @@ impl ValidatorSet {
             }
         }
 
-        // Fallback (should not happen).
-        Some(active.last().unwrap().address)
+        // Fallback (should not happen mathematically).
+        active.last().map(|v| v.address)
     }
 
     /// Get all active validators sorted by stake (descending).

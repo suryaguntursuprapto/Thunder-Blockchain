@@ -5,6 +5,8 @@
 //  world state, and the LevelDB storage layer.
 // ---------------------------------------------------------------------------
 
+#![allow(clippy::unwrap_used, clippy::expect_used)]
+
 pub mod block;
 pub mod crypto;
 pub mod merkle;

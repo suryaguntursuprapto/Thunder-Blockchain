@@ -57,7 +57,9 @@ impl AbftConsensus {
         let validators = self.validators.clone();
 
         for hash in &event_hashes {
-            let event = self.dag.get(hash).unwrap().clone();
+            let Some(event) = self.dag.get(hash).cloned() else {
+                continue;
+            };
             let zero = [0u8; 32];
 
             let round = if event.self_parent == zero {
