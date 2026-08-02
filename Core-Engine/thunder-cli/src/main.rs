@@ -64,6 +64,8 @@ enum NodeCommands {
         data_dir: String,
         #[arg(short, long, default_value_t = 30303)]
         port: u16,
+        #[arg(long)]
+        bootnode: Option<String>,
     },
     /// Show node status.
     Status,
@@ -142,6 +144,9 @@ fn main() {
                 println!("  Node Address : {}", address_to_hex(&key_pair.address()));
                 println!("  Data Dir     : {}", data_dir);
                 println!("  Listen Port  : {}", port);
+                if let Some(bn) = &bootnode {
+                    println!("  Bootnode     : {}", bn);
+                }
                 println!("  Consensus    : PoS aBFT (Hashgraph)");
                 println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
