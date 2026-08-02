@@ -8,6 +8,7 @@ members = [
     "Core-Engine/thunder-lang",
     "Core-Engine/thunder-rpc",
     "Core-Engine/thunder-cli",
+    "Core-Engine/thunder-relayer",
 ]
 
 [workspace.package]
