@@ -136,7 +136,11 @@ fn main() {
     match cli.command {
         // ── Node Commands ──────────────────────────────────────────────
         Commands::Node { action } => match action {
-            NodeCommands::Start { data_dir, port } => {
+            NodeCommands::Start {
+                data_dir,
+                port,
+                bootnode,
+            } => {
                 println!("⚡ Thunder Blockchain");
                 println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
