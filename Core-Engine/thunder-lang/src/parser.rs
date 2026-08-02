@@ -516,7 +516,9 @@ impl Parser {
     // ── Token helpers ──────────────────────────────────────────────────
 
     fn peek(&self) -> &Token {
-        self.tokens.get(self.pos).unwrap_or_else(|| self.tokens.last().unwrap())
+        self.tokens
+            .get(self.pos)
+            .unwrap_or_else(|| self.tokens.last().unwrap())
     }
 
     fn advance(&mut self) -> Token {

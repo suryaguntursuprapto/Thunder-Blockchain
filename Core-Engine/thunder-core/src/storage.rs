@@ -6,7 +6,6 @@
 
 use rocksdb::{Options, DB};
 
-
 /// Persistent key-value storage backed by RocksDB.
 pub struct Storage {
     db: DB,
@@ -16,7 +15,7 @@ impl Storage {
     /// Open (or create) a RocksDB database at the given path.
     pub fn new(path: &str) -> Self {
         std::fs::create_dir_all(path).expect("failed to create storage directory");
-        
+
         let mut opts = Options::default();
         opts.create_if_missing(true);
         // Additional optimizations for high throughput can be added to `opts` here.
@@ -27,9 +26,7 @@ impl Storage {
 
     /// Store a key-value pair.
     pub fn put(&self, key: &[u8], value: &[u8]) {
-        self.db
-            .put(key, value)
-            .expect("RocksDB put failed");
+        self.db.put(key, value).expect("RocksDB put failed");
     }
 
     /// Retrieve the value for a key. Returns `None` if not found.
@@ -39,9 +36,7 @@ impl Storage {
 
     /// Delete a key.
     pub fn delete(&self, key: &[u8]) {
-        self.db
-            .delete(key)
-            .expect("RocksDB delete failed");
+        self.db.delete(key).expect("RocksDB delete failed");
     }
 
     /// Check whether a key exists.

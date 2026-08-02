@@ -222,7 +222,10 @@ fn main() {
                             println!("  ✅ Compilation successful!");
                             println!("  Contract     : {}", compiled.name);
                             println!("  Instructions : {}", compiled.instructions.len());
-                            println!("  Functions    : {:?}", compiled.function_table.keys().collect::<Vec<_>>());
+                            println!(
+                                "  Functions    : {:?}",
+                                compiled.function_table.keys().collect::<Vec<_>>()
+                            );
                             println!("  State Slots  : {:?}", compiled.state_slots);
                         }
                         Err(e) => {
@@ -240,7 +243,11 @@ fn main() {
                 match std::fs::read_to_string(&file) {
                     Ok(source) => match compile_source(&source) {
                         Ok(compiled) => {
-                            println!("  ✅ Compiled {} ({} instructions)", compiled.name, compiled.instructions.len());
+                            println!(
+                                "  ✅ Compiled {} ({} instructions)",
+                                compiled.name,
+                                compiled.instructions.len()
+                            );
                             println!("  Contract would be deployed to the network.");
                         }
                         Err(e) => {
@@ -259,7 +266,11 @@ fn main() {
                 match std::fs::read_to_string(&file) {
                     Ok(source) => match compile_source(&source) {
                         Ok(compiled) => {
-                            println!("  ✅ Compiled {} ({} instructions)", compiled.name, compiled.instructions.len());
+                            println!(
+                                "  ✅ Compiled {} ({} instructions)",
+                                compiled.name,
+                                compiled.instructions.len()
+                            );
 
                             // Find the function entry point.
                             if let Some(&entry) = compiled.function_table.get(&function) {
@@ -274,12 +285,10 @@ fn main() {
                                 // Run VM starting at the function entry point.
                                 let instructions = compiled.instructions.clone();
                                 // Prepend a jump to the function entry.
-                                let mut exec_instructions = vec![
-                                    Instruction::with_operand(
-                                        thunder_vm::opcode::OpCode::Jump,
-                                        (entry + 1) as u64,
-                                    ),
-                                ];
+                                let mut exec_instructions = vec![Instruction::with_operand(
+                                    thunder_vm::opcode::OpCode::Jump,
+                                    (entry + 1) as u64,
+                                )];
                                 exec_instructions.extend(instructions);
 
                                 let mut vm = ThunderVm::new(
@@ -296,16 +305,24 @@ fn main() {
                                             println!("  Return Value : {}", val);
                                         }
                                         if result.reverted {
-                                            println!("  ⚠ Execution reverted: {}", 
-                                                result.revert_reason.unwrap_or_default());
+                                            println!(
+                                                "  ⚠ Execution reverted: {}",
+                                                result.revert_reason.unwrap_or_default()
+                                            );
                                         } else {
                                             println!("  ✅ Execution successful!");
                                         }
                                         if !result.logs.is_empty() {
-                                            println!("  Logs         : {} events emitted", result.logs.len());
+                                            println!(
+                                                "  Logs         : {} events emitted",
+                                                result.logs.len()
+                                            );
                                         }
                                         if !result.storage.is_empty() {
-                                            println!("  Storage      : {} slots written", result.storage.len());
+                                            println!(
+                                                "  Storage      : {} slots written",
+                                                result.storage.len()
+                                            );
                                         }
                                     }
                                     Err(e) => {
@@ -313,9 +330,11 @@ fn main() {
                                     }
                                 }
                             } else {
-                                println!("  ❌ Function '{}' not found. Available: {:?}", 
-                                    function, 
-                                    compiled.function_table.keys().collect::<Vec<_>>());
+                                println!(
+                                    "  ❌ Function '{}' not found. Available: {:?}",
+                                    function,
+                                    compiled.function_table.keys().collect::<Vec<_>>()
+                                );
                             }
                         }
                         Err(e) => {

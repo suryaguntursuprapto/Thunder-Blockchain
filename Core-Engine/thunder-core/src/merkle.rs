@@ -61,7 +61,11 @@ pub fn generate_proof(hashes: &[Hash], index: usize) -> Vec<MerkleProofNode> {
             current_level.push(last);
         }
 
-        let sibling_idx = if idx.is_multiple_of(2) { idx + 1 } else { idx - 1 };
+        let sibling_idx = if idx.is_multiple_of(2) {
+            idx + 1
+        } else {
+            idx - 1
+        };
         proof.push(MerkleProofNode {
             hash: current_level[sibling_idx],
             is_left: !idx.is_multiple_of(2),

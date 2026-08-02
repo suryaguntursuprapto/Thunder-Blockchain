@@ -72,14 +72,13 @@ impl RpcHandler {
 
             "thunder_blockNumber" => {
                 // In production, this would query the node's chain.
-                JsonRpcResponse::success(
-                    request.id,
-                    serde_json::json!({ "height": 0 }),
-                )
+                JsonRpcResponse::success(request.id, serde_json::json!({ "height": 0 }))
             }
 
             "thunder_getBalance" => {
-                let address = request.params.get("address")
+                let address = request
+                    .params
+                    .get("address")
                     .and_then(|v| v.as_str())
                     .unwrap_or("0x0");
                 // Placeholder — in production, look up from WorldState.
@@ -98,7 +97,9 @@ impl RpcHandler {
             }
 
             "thunder_getBlock" => {
-                let height = request.params.get("height")
+                let height = request
+                    .params
+                    .get("height")
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0);
                 JsonRpcResponse::success(
@@ -112,14 +113,13 @@ impl RpcHandler {
             }
 
             "thunder_getValidators" => {
-                JsonRpcResponse::success(
-                    request.id,
-                    serde_json::json!({ "validators": [] }),
-                )
+                JsonRpcResponse::success(request.id, serde_json::json!({ "validators": [] }))
             }
 
             "thunder_compileContract" => {
-                let source = request.params.get("source")
+                let source = request
+                    .params
+                    .get("source")
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
 

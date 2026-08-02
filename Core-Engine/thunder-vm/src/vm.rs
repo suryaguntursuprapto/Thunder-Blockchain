@@ -217,7 +217,8 @@ impl ThunderVm {
                     locals_base: self.locals.len(),
                     locals_count: 16, // default local var slots per function
                 };
-                self.locals.resize(frame.locals_base + frame.locals_count, 0);
+                self.locals
+                    .resize(frame.locals_base + frame.locals_count, 0);
                 self.call_stack.push(frame);
                 self.pc = instr.operand as usize;
                 return Ok(());
@@ -247,21 +248,13 @@ impl ThunderVm {
             // ── Local Variables ────────────────────────────────────────
             OpCode::LoadLocal => {
                 let idx = instr.operand as usize;
-                let base = self
-                    .call_stack
-                    .last()
-                    .map(|f| f.locals_base)
-                    .unwrap_or(0);
+                let base = self.call_stack.last().map(|f| f.locals_base).unwrap_or(0);
                 let val = self.locals.get(base + idx).copied().unwrap_or(0);
                 self.stack.push(val);
             }
             OpCode::StoreLocal => {
                 let idx = instr.operand as usize;
-                let base = self
-                    .call_stack
-                    .last()
-                    .map(|f| f.locals_base)
-                    .unwrap_or(0);
+                let base = self.call_stack.last().map(|f| f.locals_base).unwrap_or(0);
                 let val = self.pop()?;
                 if base + idx >= self.locals.len() {
                     self.locals.resize(base + idx + 1, 0);
@@ -322,10 +315,7 @@ impl ThunderVm {
                     return Err(VmError::InsufficientBalance);
                 }
 
-                *self
-                    .balances
-                    .entry(self.ctx.contract_address)
-                    .or_insert(0) -= amount;
+                *self.balances.entry(self.ctx.contract_address).or_insert(0) -= amount;
                 *self.balances.entry(to).or_insert(0) += amount;
                 self.stack.push(1); // success
             }
@@ -336,9 +326,7 @@ impl ThunderVm {
                 self.stack.push(self.ctx.block_height);
             }
             OpCode::SelfAddress => {
-                let val = u64::from_le_bytes(
-                    self.ctx.contract_address[..8].try_into().unwrap(),
-                );
+                let val = u64::from_le_bytes(self.ctx.contract_address[..8].try_into().unwrap());
                 self.stack.push(val);
             }
 
@@ -503,11 +491,11 @@ mod tests {
     fn test_conditional_jump() {
         // If 1 (true), jump to instruction 3 (Push 100), skip Push 999.
         let program = vec![
-            Instruction::with_operand(OpCode::Push, 1),             // 0
-            Instruction::with_operand(OpCode::JumpIf, 3),           // 1
-            Instruction::with_operand(OpCode::Push, 999),           // 2 (skipped)
-            Instruction::with_operand(OpCode::Push, 100),           // 3
-            Instruction::new(OpCode::Halt),                         // 4
+            Instruction::with_operand(OpCode::Push, 1),   // 0
+            Instruction::with_operand(OpCode::JumpIf, 3), // 1
+            Instruction::with_operand(OpCode::Push, 999), // 2 (skipped)
+            Instruction::with_operand(OpCode::Push, 100), // 3
+            Instruction::new(OpCode::Halt),               // 4
         ];
         let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
         let result = vm.execute().unwrap();
@@ -519,7 +507,7 @@ mod tests {
         let program = vec![
             Instruction::with_operand(OpCode::Push, 42),
             Instruction::with_operand(OpCode::StoreLocal, 0),
-            Instruction::with_operand(OpCode::Push, 0),  // clear stack
+            Instruction::with_operand(OpCode::Push, 0), // clear stack
             Instruction::new(OpCode::Pop),
             Instruction::with_operand(OpCode::LoadLocal, 0),
             Instruction::new(OpCode::Halt),
@@ -535,7 +523,7 @@ mod tests {
             Instruction::with_operand(OpCode::Push, 1),   // key
             Instruction::with_operand(OpCode::Push, 999), // value
             Instruction::new(OpCode::SStore),
-            Instruction::with_operand(OpCode::Push, 1),   // key
+            Instruction::with_operand(OpCode::Push, 1), // key
             Instruction::new(OpCode::SLoad),
             Instruction::new(OpCode::Halt),
         ];

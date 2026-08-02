@@ -6,13 +6,13 @@
 //  synchronous building blocks.
 // ---------------------------------------------------------------------------
 
+use thunder_consensus::abft::AbftConsensus;
+use thunder_consensus::pos::ValidatorSet;
+use thunder_consensus::types::Event;
 use thunder_core::block::Block;
 use thunder_core::crypto::{self, KeyPair};
 use thunder_core::state::WorldState;
 use thunder_core::transaction::Transaction;
-use thunder_consensus::abft::AbftConsensus;
-use thunder_consensus::pos::ValidatorSet;
-use thunder_consensus::types::Event;
 
 use crate::peer::PeerManager;
 
@@ -98,11 +98,7 @@ impl Node {
     /// Register this node as a validator.
     pub fn register_as_validator(&mut self, stake: u64) -> Result<(), String> {
         self.validator_set
-            .register(
-                self.key_pair.address(),
-                self.key_pair.public_key(),
-                stake,
-            )
+            .register(self.key_pair.address(), self.key_pair.public_key(), stake)
             .map_err(|e| e.to_string())?;
 
         // Update consensus engine with the new validator set.
@@ -255,14 +251,8 @@ mod tests {
         let sender = KeyPair::generate();
         let recipient = KeyPair::generate();
 
-        let mut tx = Transaction::new_transfer(
-            0,
-            sender.address(),
-            recipient.address(),
-            100,
-            21_000,
-            1,
-        );
+        let mut tx =
+            Transaction::new_transfer(0, sender.address(), recipient.address(), 100, 21_000, 1);
         tx.sign(&sender);
         node.add_transaction(tx).unwrap();
         assert_eq!(node.mempool.len(), 1);

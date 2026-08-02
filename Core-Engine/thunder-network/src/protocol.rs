@@ -6,10 +6,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use thunder_consensus::types::Event;
 use thunder_core::block::Block;
 use thunder_core::crypto::Hash;
 use thunder_core::transaction::Transaction;
-use thunder_consensus::types::Event;
 
 /// Messages exchanged between peers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,22 +27,16 @@ pub enum NetworkMessage {
     },
 
     /// Response with events the requester was missing.
-    ResponseEvents {
-        events: Vec<Event>,
-    },
+    ResponseEvents { events: Vec<Event> },
 
     /// A new finalised block announcement.
     NewBlock(Block),
 
     /// Request a block by height.
-    RequestBlock {
-        height: u64,
-    },
+    RequestBlock { height: u64 },
 
     /// Response with the requested block.
-    ResponseBlock {
-        block: Option<Block>,
-    },
+    ResponseBlock { block: Option<Block> },
 
     /// Ping (keepalive).
     Ping,

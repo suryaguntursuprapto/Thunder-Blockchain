@@ -52,7 +52,8 @@ impl Compiler {
 
         // 1. Register state variable storage slots.
         for sv in &contract.state_vars {
-            self.state_slots.insert(sv.name.clone(), self.next_state_slot);
+            self.state_slots
+                .insert(sv.name.clone(), self.next_state_slot);
             self.next_state_slot += 1;
         }
 
@@ -212,11 +213,17 @@ impl Compiler {
                 }
                 self.emit(Instruction::new(OpCode::Return));
             }
-            Statement::Require { condition, message: _ } => {
+            Statement::Require {
+                condition,
+                message: _,
+            } => {
                 self.compile_expression(condition)?;
                 self.emit(Instruction::new(OpCode::Require));
             }
-            Statement::Emit { event_name: _, args } => {
+            Statement::Emit {
+                event_name: _,
+                args,
+            } => {
                 // Push data (last arg or 0).
                 if let Some(last) = args.last() {
                     self.compile_expression(last)?;

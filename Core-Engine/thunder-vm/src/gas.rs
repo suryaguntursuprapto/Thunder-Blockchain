@@ -18,8 +18,7 @@ pub fn gas_cost(opcode: OpCode) -> u64 {
         OpCode::Div => 5, // Division is slightly more expensive.
 
         // Comparison — cheap.
-        OpCode::Eq | OpCode::Neq | OpCode::Lt | OpCode::Gt |
-        OpCode::Lte | OpCode::Gte => 3,
+        OpCode::Eq | OpCode::Neq | OpCode::Lt | OpCode::Gt | OpCode::Lte | OpCode::Gte => 3,
 
         // Logic — cheap.
         OpCode::And | OpCode::Or | OpCode::Not => 3,
@@ -39,8 +38,7 @@ pub fn gas_cost(opcode: OpCode) -> u64 {
         OpCode::SStore => 5_000,
 
         // Blockchain context — moderate.
-        OpCode::Caller | OpCode::Timestamp | OpCode::BlockHeight |
-        OpCode::SelfAddress => 2,
+        OpCode::Caller | OpCode::Timestamp | OpCode::BlockHeight | OpCode::SelfAddress => 2,
         OpCode::Balance => 100,
         OpCode::Transfer => 9_000,
 
@@ -148,7 +146,7 @@ mod tests {
         let mut meter = GasMeter::new(10);
         assert!(meter.consume_opcode(OpCode::Push).is_ok()); // 2
         assert!(meter.consume_opcode(OpCode::Push).is_ok()); // 4
-        assert!(meter.consume_opcode(OpCode::Add).is_ok());  // 7
+        assert!(meter.consume_opcode(OpCode::Add).is_ok()); // 7
         assert_eq!(meter.used(), 7);
     }
 }

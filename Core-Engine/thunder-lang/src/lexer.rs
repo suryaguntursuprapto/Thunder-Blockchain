@@ -31,7 +31,7 @@ pub enum TokenKind {
     State,
     Emit,
     Require,
-    Self_,       // `self`
+    Self_, // `self`
     True,
     False,
 
@@ -50,34 +50,34 @@ pub enum TokenKind {
     Identifier(String),
 
     // ── Operators ──────────────────────────────────────────────────────
-    Plus,        // +
-    Minus,       // -
-    Star,        // *
-    Slash,       // /
-    Percent,     // %
-    Eq,          // ==
-    Neq,         // !=
-    Lt,          // <
-    Gt,          // >
-    Lte,         // <=
-    Gte,         // >=
-    And,         // &&
-    Or,          // ||
-    Not,         // !
-    Assign,      // =
+    Plus,    // +
+    Minus,   // -
+    Star,    // *
+    Slash,   // /
+    Percent, // %
+    Eq,      // ==
+    Neq,     // !=
+    Lt,      // <
+    Gt,      // >
+    Lte,     // <=
+    Gte,     // >=
+    And,     // &&
+    Or,      // ||
+    Not,     // !
+    Assign,  // =
 
     // ── Delimiters ─────────────────────────────────────────────────────
-    LeftParen,   // (
-    RightParen,  // )
-    LeftBrace,   // {
-    RightBrace,  // }
-    LeftBracket, // [
-    RightBracket,// ]
-    Comma,       // ,
-    Semicolon,   // ;
-    Colon,       // :
-    Dot,         // .
-    Arrow,       // ->
+    LeftParen,    // (
+    RightParen,   // )
+    LeftBrace,    // {
+    RightBrace,   // }
+    LeftBracket,  // [
+    RightBracket, // ]
+    Comma,        // ,
+    Semicolon,    // ;
+    Colon,        // :
+    Dot,          // .
+    Arrow,        // ->
 
     // ── Special ────────────────────────────────────────────────────────
     Eof,
@@ -476,7 +476,10 @@ mod tests {
         let tokens = lexer.tokenize().unwrap();
 
         assert_eq!(tokens[0].kind, TokenKind::Fn);
-        assert_eq!(tokens[1].kind, TokenKind::Identifier("transfer".to_string()));
+        assert_eq!(
+            tokens[1].kind,
+            TokenKind::Identifier("transfer".to_string())
+        );
         assert_eq!(tokens[2].kind, TokenKind::LeftParen);
         assert_eq!(tokens[3].kind, TokenKind::Identifier("to".to_string()));
         assert_eq!(tokens[4].kind, TokenKind::Colon);

@@ -59,10 +59,7 @@ pub enum Type {
 #[derive(Debug, Clone)]
 pub enum Statement {
     /// `let name = expr;`
-    Let {
-        name: String,
-        value: Expression,
-    },
+    Let { name: String, value: Expression },
     /// `name = expr;` or `self.name = expr;`
     Assign {
         target: AssignTarget,
@@ -80,9 +77,7 @@ pub enum Statement {
         body: Vec<Statement>,
     },
     /// `return expr;`
-    Return {
-        value: Option<Expression>,
-    },
+    Return { value: Option<Expression> },
     /// `require(condition, message);`
     Require {
         condition: Expression,
@@ -137,10 +132,7 @@ pub enum Expression {
         operand: Box<Expression>,
     },
     /// Function call: `name(args...)`.
-    FunctionCall {
-        name: String,
-        args: Vec<Expression>,
-    },
+    FunctionCall { name: String, args: Vec<Expression> },
 }
 
 /// Binary operators.

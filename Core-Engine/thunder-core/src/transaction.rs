@@ -129,7 +129,13 @@ impl Transaction {
     }
 
     /// Create a new **unsigned** stake transaction.
-    pub fn new_stake(nonce: u64, from: Address, amount: u64, gas_limit: u64, gas_price: u64) -> Self {
+    pub fn new_stake(
+        nonce: u64,
+        from: Address,
+        amount: u64,
+        gas_limit: u64,
+        gas_price: u64,
+    ) -> Self {
         Self {
             nonce,
             from,
@@ -213,14 +219,8 @@ mod tests {
     fn test_transfer_sign_verify() {
         let sender = KeyPair::generate();
         let recipient = KeyPair::generate();
-        let mut tx = Transaction::new_transfer(
-            0,
-            sender.address(),
-            recipient.address(),
-            1000,
-            21000,
-            1,
-        );
+        let mut tx =
+            Transaction::new_transfer(0, sender.address(), recipient.address(), 1000, 21000, 1);
         tx.sign(&sender);
         assert!(tx.verify_signature());
     }
@@ -229,14 +229,8 @@ mod tests {
     fn test_tampered_tx_fails_verification() {
         let sender = KeyPair::generate();
         let recipient = KeyPair::generate();
-        let mut tx = Transaction::new_transfer(
-            0,
-            sender.address(),
-            recipient.address(),
-            1000,
-            21000,
-            1,
-        );
+        let mut tx =
+            Transaction::new_transfer(0, sender.address(), recipient.address(), 1000, 21000, 1);
         tx.sign(&sender);
 
         // Tamper with the value after signing

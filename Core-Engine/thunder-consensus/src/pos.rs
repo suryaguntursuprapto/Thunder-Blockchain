@@ -205,8 +205,7 @@ mod tests {
 
         for stake in [1000u64, 2000, 3000] {
             let kp = KeyPair::generate();
-            vs.register(kp.address(), kp.public_key(), stake)
-                .unwrap();
+            vs.register(kp.address(), kp.public_key(), stake).unwrap();
             kps.push(kp);
         }
 

@@ -321,7 +321,10 @@ mod tests {
         tx.sign(&sender_kp);
 
         let result = state.apply_transaction(&tx);
-        assert!(matches!(result, Err(StateError::InsufficientBalance { .. })));
+        assert!(matches!(
+            result,
+            Err(StateError::InsufficientBalance { .. })
+        ));
     }
 
     #[test]

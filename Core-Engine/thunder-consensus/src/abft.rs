@@ -193,10 +193,7 @@ impl AbftConsensus {
         let mut famous_by_round: HashMap<u64, Vec<Hash>> = HashMap::new();
         for ev in &all_events {
             if ev.is_witness && ev.is_famous == Some(true) {
-                famous_by_round
-                    .entry(ev.round)
-                    .or_default()
-                    .push(ev.hash);
+                famous_by_round.entry(ev.round).or_default().push(ev.hash);
             }
         }
 
@@ -218,9 +215,7 @@ impl AbftConsensus {
                 }
 
                 let famous = &famous_by_round[round];
-                let all_see = famous
-                    .iter()
-                    .all(|fw| self.dag.is_ancestor(&ev.hash, fw));
+                let all_see = famous.iter().all(|fw| self.dag.is_ancestor(&ev.hash, fw));
 
                 if all_see {
                     // Consensus timestamp = median of famous witnesses' timestamps.
