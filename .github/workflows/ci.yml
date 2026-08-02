@@ -3,6 +3,7 @@ name: Thunder Continuous Integration
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*.*.*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -16,16 +17,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
+      - name: Cache Cargo via rust-cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          shared-key: "thunder-rocksdb-cache"
 
       - name: Build Workspace
         run: cargo build --workspace --verbose
@@ -39,6 +34,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Cargo via rust-cache
+        uses: Swatinem/rust-cache@v2
+        
+      - name: Run Format Check
+        run: cargo fmt --all -- --check
+
       - name: Run Cargo Clippy
         run: cargo clippy --workspace -- -D warnings
 
@@ -48,12 +49,57 @@ jobs:
       - name: Run Security Vulnerability Audit
         run: cargo audit
 
-  docker_build:
-    name: Build Docker Image 🐳
+  docker_build_and_push:
+    name: Build & Push Docker Image 🐳
     needs: [build_and_test, security_audit]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Log in to the Container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build Docker Image
-        run: docker build -t thunder-node:latest .
+        run: docker build -t ghcr.io/${{ github.repository }}/thunder-node:latest -t ghcr.io/${{ github.repository }}/thunder-node:${{ github.sha }} .
+
+      - name: Push Docker Image to GHCR
+        if: github.event_name != 'pull_request'
+        run: |
+          docker push ghcr.io/${{ github.repository }}/thunder-node:latest
+          docker push ghcr.io/${{ github.repository }}/thunder-node:${{ github.sha }}
+
+  release:
+    name: Create GitHub Release 📦
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build_and_test, security_audit, docker_build_and_push]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Cargo via rust-cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build Release Binary
+        run: cargo build --release -p thunder-cli
+
+      - name: Package Binary
+        run: |
+          mkdir -p dist
+          cp target/release/thunder-cli dist/
+          tar -czvf thunder-cli-linux-x86_64.tar.gz -C dist thunder-cli
+          
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: thunder-cli-linux-x86_64.tar.gz
+          generate_release_notes: true
