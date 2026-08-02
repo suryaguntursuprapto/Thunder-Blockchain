@@ -67,14 +67,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set lower case repository name
+        run: |
+          echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
       - name: Build Docker Image
-        run: docker build -t ghcr.io/${{ github.repository }}/thunder-node:latest -t ghcr.io/${{ github.repository }}/thunder-node:${{ github.sha }} .
+        run: docker build -t ghcr.io/${{ env.REPO_LC }}/thunder-node:latest -t ghcr.io/${{ env.REPO_LC }}/thunder-node:${{ github.sha }} .
 
       - name: Push Docker Image to GHCR
         if: github.event_name != 'pull_request'
         run: |
-          docker push ghcr.io/${{ github.repository }}/thunder-node:latest
-          docker push ghcr.io/${{ github.repository }}/thunder-node:${{ github.sha }}
+          docker push ghcr.io/${{ env.REPO_LC }}/thunder-node:latest
+          docker push ghcr.io/${{ env.REPO_LC }}/thunder-node:${{ github.sha }}
 
   release:
     name: Create GitHub Release 📦
