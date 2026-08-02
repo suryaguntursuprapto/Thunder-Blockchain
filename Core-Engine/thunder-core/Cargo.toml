@@ -14,7 +14,7 @@ ed25519-dalek = { workspace = true }
 serde-big-array = "0.5"
 rand = { workspace = true }
 hex = { workspace = true }
-rusty-leveldb = { workspace = true }
+rocksdb = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 tracing = { workspace = true }

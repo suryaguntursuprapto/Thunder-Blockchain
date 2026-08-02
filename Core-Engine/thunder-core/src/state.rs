@@ -80,7 +80,7 @@ impl WorldState {
     }
 
     /// Get an account.  Returns a default (empty) account if not found.
-    pub fn get_account(&mut self, address: &Address) -> Account {
+    pub fn get_account(&self, address: &Address) -> Account {
         // Check cache first.
         if let Some(account) = self.cache.get(address) {
             return account.clone();
@@ -99,7 +99,7 @@ impl WorldState {
     }
 
     /// Get the balance of an account.
-    pub fn get_balance(&mut self, address: &Address) -> u64 {
+    pub fn get_balance(&self, address: &Address) -> u64 {
         self.get_account(address).balance
     }
 
