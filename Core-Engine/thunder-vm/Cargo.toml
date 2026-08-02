@@ -10,3 +10,4 @@ thunder-core = { path = "../thunder-core" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+ed25519-dalek = { workspace = true }

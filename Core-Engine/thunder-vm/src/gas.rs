@@ -30,8 +30,8 @@ pub fn gas_cost(opcode: OpCode) -> u64 {
         OpCode::Halt => 0,
         OpCode::Revert => 0,
 
-        // Memory (local variables).
-        OpCode::LoadLocal | OpCode::StoreLocal => 3,
+        // Memory (local variables & linear).
+        OpCode::LoadLocal | OpCode::StoreLocal | OpCode::MLoad | OpCode::MStore => 3,
 
         // Persistent storage — expensive (disk I/O).
         OpCode::SLoad => 200,
@@ -42,9 +42,10 @@ pub fn gas_cost(opcode: OpCode) -> u64 {
         OpCode::Balance => 100,
         OpCode::Transfer => 9_000,
 
-        // Data.
+        // Data & Cryptography.
         OpCode::PushBytes => 3,
-        OpCode::Hash => 30,
+        OpCode::Hash | OpCode::Keccak256 => 30,
+        OpCode::VerifySig => 3_000,
 
         // Events.
         OpCode::Log => 375,

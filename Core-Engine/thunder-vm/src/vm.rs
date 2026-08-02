@@ -381,15 +381,18 @@ impl ThunderVm {
                 let pubkey_bytes = self.read_mem(pubkey_ptr, 32)?;
                 let sig_bytes = self.read_mem(sig_ptr, 64)?;
 
-                // ed25519_dalek usage
-                use ed25519_dalek::{PublicKey, Signature, Verifier};
+                // ed25519_dalek usage (v2)
+                use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 
-                let valid = if let Ok(pk) = PublicKey::from_bytes(pubkey_bytes) {
-                    if let Ok(sig) = Signature::from_bytes(sig_bytes) {
-                        pk.verify(msg, &sig).is_ok()
-                    } else {
-                        false
-                    }
+                let mut pk_arr = [0u8; 32];
+                pk_arr.copy_from_slice(pubkey_bytes);
+
+                let mut sig_arr = [0u8; 64];
+                sig_arr.copy_from_slice(sig_bytes);
+
+                let valid = if let Ok(pk) = VerifyingKey::from_bytes(&pk_arr) {
+                    let sig = Signature::from_bytes(&sig_arr);
+                    pk.verify(msg, &sig).is_ok()
                 } else {
                     false
                 };

@@ -5419,6 +5419,7 @@ dependencies = [
 name = "thunder-vm"
 version = "0.1.0"
 dependencies = [
+ "ed25519-dalek",
  "serde",
  "thiserror 1.0.69",
  "thunder-core",
