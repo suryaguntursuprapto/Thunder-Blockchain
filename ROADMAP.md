@@ -1,78 +1,54 @@
-# 🗺️ Thunder Blockchain: Future Development Roadmap
+# 🗺️ Thunder Blockchain: Development Roadmap
 
 This document outlines the strategic and technical phases intended for the future development and maturation of the **Thunder Blockchain** ecosystem.
 
-## Phase 1: Core Foundation (✅ Complete)
+## ✅ Phase 1: Core Foundation (v1.0.0)
 - **Architecture**: 7-crate modular architecture in Rust.
 - **Cryptography**: Ed25519 signatures, SHA-256 hashing, Merkle Trees.
 - **Consensus**: DAG-based PoS aBFT implementation (Rounds, Fame, Order).
 - **Execution**: Stack-based ThunderVM with strict gas metering.
 - **Language**: ThunderScript compiler capable of mapping AST to ThunderVM bytecode.
-- **Storage**: Persistent raw and state storage via LevelDB.
+- **Storage**: Persistent raw and state storage migrated to high-throughput parallelized `RocksDB` (`rust-rocksdb`), bypassing monolithic `.db` constraints via multithreaded concurrent column families.
 
 ---
 
-## Phase 2: Network Maturation (v2.0.0) & Testnet
-*Focus: Stabilizing the peer-to-peer layer and ensuring consensus safety in a distributed environment.*
-
-- **[ ] Bootnode Infrastructure**: Implement hardcoded bootnodes to allow dynamic peer discovery beyond Localhost.
-- **[ ] Multi-Node Live Testnet**: Deploy a 5-validator local testnet utilizing Docker Compose to simulate high-latency conditions.
-- **[ ] Sync Protocol Optimization**: Improve block and DAG event syncing for new nodes joining the network.
-- **[ ] Metrics & Observability**: Expose Prometheus metrics for P2P latency, DAG round velocity, and gas consumption.
+## ✅ Phase 2: High Performance Architecture (v1.0.5)
+- **RocksDB Migration**: Transitioned from LevelDB to parallelized RocksDB instances for ultra-low latency transaction throughput.
+- **Multithreading Query Architectures**: Implemented strictly shared-ref state evaluations enabling non-blocking RPC connections.
+- **Strict Security Audits**: Attained zero-warning compliance natively across `cargo clippy` and mathematically sealed `unwrap()` panics in Consensus logic.
 
 ---
 
-## Phase 3: Ecosystem Tooling (v3.0.0)
+## ✅ Phase 3: Cross-Chain Bridging & VM Capabilities (v1.1.0)
+- **Linear Memory Sandbox**: Mapped dynamic Byte arrays to VM states enabling unlimited length verification footprints (`MLoad`, `MStore`).
+- **Cryptographic Enclaves**: Deployed direct `Keccak256` hashing and `VerifySig` validation opcodes strictly inside the instruction lifecycle.
+- **Oracle Validator Relayers**: Integrated the asynchronous `thunder-relayer` websocket daemon to seamlessly bridge Sepolia/Ethereum `Vault.sol` deposit events securely into the Thunder environment via JSON-RPC.
+
+---
+
+## ✅ Phase 4: Network Maturation & Testnet (v1.1.5)
+- **Bootnode Infrastructure**: Implemented hardcoded bootnodes to allow dynamic peer discovery. 
+- **Multi-Node Live Testnet**: Deployed a fully isolated 3-validator distributed topological matrix via Docker Compose to simulate high-latency conditions.
+- **Caching Pipelines**: Eliminated heavy `rust:slim` CI/CD compilation caches via precision `.dockerignore` overrides.
+
+---
+
+## 🚀 UPCOMING: Phase 5: Ecosystem Tooling (v2.0.0)
 *Focus: Creating the accessible infrastructure needed for developers and users to interact with Thunder Blockchain.*
 
-- **[ ] ThunderScan Block Explorer**: A web-based frontend (Next.js/React) connecting to `thunder-rpc` to visualize blocks, transactions, and DAG events in real-time.
-- **[ ] Web3 SDK / JSON-RPC Client**: A JS/TS library to allow web applications to easily sign transactions and call ThunderScript contracts.
-- **[ ] Browser Wallet Extension**: A non-custodial extension for key management and transaction signing (similar to MetaMask).
+- **[ ] ThunderScan Block Explorer**: A web-based frontend.
+- **[ ] Web3 SDK / JSON-RPC Client**: A JS/TS library to allow web applications to interact.
+- **[ ] Browser Wallet Extension**: A non-custodial extension for key management.
 
 ---
 
-## Phase 4: Post-Quantum Cryptography (v4.0.0)
-*Focus: Long-term security and resilience against Quantum Computing algorithms like Shor's.*
-
-- **[ ] CRYSTALS-Dilithium Migration**: Replace `Ed25519` elliptic curve signatures with the NIST-standardized `Dilithium2` lattice-based signature scheme.
-- **[ ] State Storage Optimization**: Repackaging LevelDB serializations (via variable binary vectors instead of `BigArray`) to accommodate the drastically larger Dilithium key/signature footprints.
-- **[ ] PQC Gas Economy Adjustments**: Recalculate transaction gas costs mathematically tied to the exponential byte size of lattice cryptographic verification compared to classic cryptography.
+## 🚀 UPCOMING: Phase 6: Post-Quantum Cryptography (v3.0.0)
+- **[ ] CRYSTALS-Dilithium Migration**: Replace `Ed25519` elliptic curves with NIST `Dilithium2` algorithms.
+- **[ ] PQC Gas Economy Adjustments**: Recalculate transaction gas costs natively.
 
 ---
 
-## Phase 5: Extreme Scalability Architecture (v5.0.0)
-*Focus: Pushing the architectural limits to reach 400.000+ TPS.*
-
-- **[ ] Object-Centric Parallel Execution**: Overhaul ThunderVM to process non-overlapping state transactions concurrently across multi-core CPUs (similar to Sui/Aptos).
-- **[ ] Dynamic State Sharding & Subnets**: Split the network into independent parallel shards with trustless cross-shard communication protocols.
-- **[ ] FPGA/GPU Cryptographic Hardware Acceleration**: Batch-verify digital signatures via GPU pipelines to bypass CPU bottlenecks.
-- **[ ] ZK-Stateless Architecture**: Transition from raw LevelDB storage to zero-knowledge state-root validation, forcing clients to prove state rather than making nodes store the world.
-- **[ ] Custom UDP Turbine Networking**: Replace `libp2p` with a custom-built low-latency UDP stream protocol optimized for extreme throughput.
-
----
-
-## Phase 6: Advanced Smart Contracts (v6.0.0)
-*Focus: Expanding the capabilities of the smart contract language.*
-
-- **[ ] Advanced Data Types**: Add support for `struct`, arrays, and nested maps.
-- **[ ] Cross-Contract Calls**: Allow smart contracts to securely instantiate and call functions in other smart contracts.
-- **[ ] Standard Library**: Introduce built-in mathematical and cryptographic functions (e.g., `secp256k1` verification) to the compiler.
-- **[ ] ABI Generation**: Output standard ABI files during compilation for easier frontend integration.
-
----
-
-## Phase 7: Economic Finality & Tokenomics (v7.0.0)
-*Focus: Enforcing the monetary policy and economic security of the network.*
-
-- **[ ] Staking Rewards**: Implement algorithmic token issuance and distribution to validators based on uptime and stake weight.
-- **[ ] Slashing Implementation**: Enforce the burning of stake for malicious behavior (double-signing events).
-- **[ ] EIP-1559 Style Fee Market**: Implement a dynamic base fee that burns THDR to counteract inflation.
-
----
-
-## Phase 8: Mainnet Launch (v8.0.0)
-*Focus: Security audits, bug bounties, and the production genesis block.*
-
-- **[ ] Security Audits**: Third-party review of the `thunder-consensus` aBFT logic and `thunder-vm` execution loop.
-- **[ ] Genesis Ceremony**: Distribution of initial stake, locking the genesis block.
-- **[ ] Mainnet Alpha (Restricted Validator Set)**: Launching with a trusted set of validators before slowly transitioning to a permissionless PoS network.
+## 🚀 UPCOMING: Phase 7: Extreme Scalability (v4.0.0)
+- **[ ] Object-Centric Parallel Execution**: Process non-overlapping state transactions concurrently.
+- **[ ] Dynamic State Sharding & Subnets**: Split the network into independent parallel shards.
+- **[ ] ZK-Stateless Architecture**: Transition to zero-knowledge state-root validation.
