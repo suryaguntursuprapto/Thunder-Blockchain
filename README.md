@@ -1,5 +1,8 @@
-# 🚀 Thunder Blockchain - High-Performance Decentralized Network
+<p align="center">
+  <img src="assets/logo.png" width="300" alt="Thunder Blockchain Logo">
+</p>
 
+# 🚀 Thunder Blockchain - High-Performance Decentralized Network
 ![License: BSL 1.1](https://img.shields.io/badge/License-BSL%201.1-blue.svg) ![Rust](https://img.shields.io/badge/Rust-Production-orange.svg)
 
 ## 🌟 Overview
