@@ -138,6 +138,22 @@ impl RpcHandler {
                 }
             }
 
+            "thunder_bridgeMint" => {
+                let payload = request.params.get(0).and_then(|v| v.as_str()).unwrap_or("");
+                let _sig = request.params.get(1).and_then(|v| v.as_str()).unwrap_or("");
+                let _pubkey = request.params.get(2).and_then(|v| v.as_str()).unwrap_or("");
+
+                // In production: Validate with ed25519-dalek and insert Mint Tx into Mempool
+                tracing::info!("Received Cross-Chain Mint Request! Payload: {}", payload);
+                JsonRpcResponse::success(
+                    request.id,
+                    serde_json::json!({
+                        "status": "mint_queued",
+                        "payload_hex": payload,
+                    }),
+                )
+            }
+
             _ => JsonRpcResponse::error(
                 request.id,
                 -32601,
@@ -200,4 +216,24 @@ mod tests {
         let res = RpcHandler::handle(&req);
         assert!(res.error.is_some());
     }
+}
+
+// ── HTTP API Server (Warp) ─────────────────────────────────────────────────
+
+use std::net::SocketAddr;
+use warp::Filter;
+
+/// Start the JSON-RPC API Server asynchronously.
+pub async fn start_server(port: u16) {
+    // POST /
+    let route = warp::post()
+        .and(warp::body::json())
+        .map(|req: JsonRpcRequest| {
+            let res = RpcHandler::handle(&req);
+            warp::reply::json(&res)
+        });
+
+    let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+    tracing::info!("Starting Thunder JSON-RPC Server on http://{} ⚡", addr);
+    warp::serve(route).run(addr).await;
 }

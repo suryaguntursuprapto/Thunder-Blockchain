@@ -168,6 +168,12 @@ fn main() {
                 println!();
                 println!("  Node is ready. In a full deployment, the P2P event");
                 println!("  loop would start here using libp2p + tokio.");
+
+                // Mount the HTTP JSON-RPC Server
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    thunder_rpc::start_server(8080).await;
+                });
             }
             NodeCommands::Status => {
                 println!("⚡ Thunder Blockchain — Node Status");
