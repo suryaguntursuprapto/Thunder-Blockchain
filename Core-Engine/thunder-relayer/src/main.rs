@@ -6,8 +6,10 @@
 // ---------------------------------------------------------------------------
 
 use ethers::prelude::*;
+use serde_json::json;
 use std::error::Error;
 use std::time::Duration;
+use thunder_core::crypto::KeyPair;
 use tokio::time::sleep;
 use tracing::{info, warn};
 
@@ -24,8 +26,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("Target EVM Provider: {}", ETHEREUM_RPC);
     info!("Target Thunder Provider: {}", THUNDER_RPC);
 
-    let evm_task = tokio::spawn(async {
-        if let Err(e) = poll_external_chains().await {
+    // Bootstrap local Oracle KeyPair (In production, load from encrypted vault)
+    let oracle_keypair = KeyPair::generate();
+    let oracle_address = oracle_keypair.address();
+    info!(
+        "Oracle Public Address (Thunder): {}",
+        hex::encode(&oracle_address[..16])
+    );
+
+    let evm_task = tokio::spawn(async move {
+        if let Err(e) = poll_external_chains(&oracle_keypair).await {
             warn!("EVM Listener failed: {}", e);
         }
     });
@@ -41,19 +51,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn poll_external_chains() -> Result<(), Box<dyn Error>> {
+async fn poll_external_chains(_oracle_key: &KeyPair) -> Result<(), Box<dyn Error>> {
     info!(
         "🔗 Connecting to Ethereum WebSocket Provider: {}",
         ETHEREUM_RPC
     );
 
-    // In production, instantiate the provider properly:
-    // let ws = Ws::connect(ETHEREUM_RPC).await?;
-    // let provider = Provider::new(ws);
-
     let vault_address: Address = VAULT_ADDRESS.parse()?;
 
-    let filter = Filter::new()
+    let _filter = Filter::new()
         .address(vault_address)
         .event("Deposit(address,uint256,bytes32)");
 
@@ -63,14 +69,44 @@ async fn poll_external_chains() -> Result<(), Box<dyn Error>> {
     // let mut stream = provider.subscribe_logs(&filter).await?;
     // while let Some(log) = stream.next().await {
     //     info!("Detected Deposit Lock! EVM Tx Hash: {:?}", log.transaction_hash);
-    //     // ToDo: Capture pubkeys and format native Ed25519 signature payload.
+    //
+    //     // Generate Native Mint Payload Signature!
+    //     let payload = format!("MINT:{}:{}:{}", log.transaction_hash.unwrap(), vault_address, 1000);
+    //     let signature = oracle_key.sign(payload.as_bytes());
+    //
+    //     // Submit to Thunder JSON-RPC
+    //     submit_mint_to_thunder(&payload, signature.to_vec(), oracle_key.public_key_bytes()).await?;
     // }
 
-    // Mock simulation loop for scaffold
     loop {
-        // Sleep to simulate listening...
         sleep(Duration::from_secs(10)).await;
     }
+}
+
+#[allow(dead_code)]
+async fn submit_mint_to_thunder(
+    payload: &str,
+    sig: Vec<u8>,
+    pubkey: [u8; 32],
+) -> Result<(), Box<dyn Error>> {
+    let _client = reqwest::Client::new();
+    let _rpc_body = json!({
+        "jsonrpc": "2.0",
+        "method": "thunder_bridgeMint",
+        "params": [
+            hex::encode(payload),
+            hex::encode(sig),
+            hex::encode(pubkey)
+        ],
+        "id": 1
+    });
+
+    info!("🚀 Broadcasting Oracle Signature to Thunder Blockchain...");
+
+    // In production: execution
+    // let _res = client.post(THUNDER_RPC).json(&rpc_body).send().await?;
+
+    Ok(())
 }
 
 async fn poll_thunder_blockchain() -> Result<(), Box<dyn Error>> {
