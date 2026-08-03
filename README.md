@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo_horizontal.png" width="600" alt="Thunder Blockchain Logo Horizontal">
+  <img src="assets/logo_horizontal.png" width="100%" alt="Thunder Blockchain Logo Horizontal">
 </p>
 
 # 🚀 Thunder Blockchain - High-Performance Decentralized Network
