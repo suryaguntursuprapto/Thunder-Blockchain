@@ -82,3 +82,25 @@ Bridging holds massive systemic risk. The following architecture ensures funds c
     *   Every cross-chain transaction requires a unique **Nonce** or mapping of the originating `TxHash`. The Thunder contract will log processed hashes to ensure a Mint signature cannot be re-submitted twice.
 3.  **TSS for Bitcoin Custody**
     *   Instead of a single custodian holding BTC, a decentralized Multi-Party Computation (MPC) scheme generates a Bitcoin address. No single Oracle holds the private key; they hold key shares that must be mathematically combined to release BTC.
+4.  **Omnichain Restaking Authority Cap (15% Hard Limit)**
+    *   To prevent external networks from hijacking consensus, Thunder implements a strict **Hybrid Sovereignty Cap**. Restaking from foreign chains (Ethereum, BSC, Solana) is permanently capped at a combined maximum of **15% total Voting Power / Fame**.
+    *   At least **85%** of the network's consensus authority MUST strictly originate from Native Thunder Coin (TDR) Stakers. If foreign stakes exceed value limits due to Oracle price fluctuations, their voting weight is automatically mathematically diluted to maintain the 15% ceiling, preventing economic takeover via the Omnichain Bridge.
+
+---
+
+## 4. Omnichain Hub Defense-in-Depth Quadrant 🛡️
+
+When bridging 3 massive independent external blockchains concurrently (Ethereum, BSC, and Solana), the attack vectors infinitely multiply. Thunder mitigates inter-chain catastrophe via 4 ultimate defense barriers:
+
+### 4.1 Compartmentalized Fault Isolation (Submarine Silos)
+If the Solana network suffers an external DDoS crash or blockchain halt, the Thunder Bridge does not freeze entirely. The network algorithm separates the voting delegations of BSC, SOL, and ETH into strict airtight sub-state silos. A failure in Solana purely freezes out the Solana delegation branch (restricting its max capped voting share), while native TDR, ETH, and BSC nodes continue propagating blocks smoothly without interruption.
+
+### 4.2 Dual-Oracle TWAP Circuit Breaker
+Since external native coins (ETH, BNB, SOL) are unified into standardized USD equivalence representation to determine Fair Voting Power, Price Oracles represent a severe vulnerability. Should a hacker manipulate Chainlink prices to spike Solana artificially, they could instantly monopolize Thunder's consensus power for pennies. 
+**Defense**: The consensus aggregates Time-Weighted Average Prices (TWAP) spanning Chainlink, Pyth Network, and Band Protocol simultaneously. If deviance transcends >5%, the network instantly initiates an Automated Circuit Breaker—suspending Omnichain voting integrations until prices securely stabilize.
+
+### 4.3 Native Light-Client State Proofs (Trustless Bridging)
+The Thunder Virtual Machine eliminates HTTP Relayer Trust. Relayers do not assert that an event occurred; they merely transport the cryptographic payload. The `ThunderVM` natively interprets the raw `Block Headers` and `Merkle Patricia Trie Proofs` of Ethereum or Solana mathematically on-chain without trusting any middleman servers—replicating advanced Cosmos IBC topology.
+
+### 4.4 Automated Multi-Chain Slashing Freezes
+All foreign Restakers are hardcoded subject to a **7 to 21-Days Slashing Freeze Window**. Should an interacting Solana Restaker behave maliciously inside Thunder (e.g., executing a double spend), Thunder mathematically generates a `Slashing Proof`. Because their original Solana capital remains bound by the 21-day withdrawal lock, Relayers are granted enormous latency to submit this cryptographic verdict to the Solana Vault Program to autonomously burn their primary assets into oblivion.
