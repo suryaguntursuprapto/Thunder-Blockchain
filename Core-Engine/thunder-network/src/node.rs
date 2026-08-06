@@ -6,6 +6,7 @@
 //  synchronous building blocks.
 // ---------------------------------------------------------------------------
 
+use std::sync::{Arc, RwLock};
 use thunder_consensus::abft::AbftConsensus;
 use thunder_consensus::pos::ValidatorSet;
 use thunder_consensus::types::Event;
@@ -13,7 +14,6 @@ use thunder_core::block::Block;
 use thunder_core::crypto::{self, KeyPair};
 use thunder_core::state::WorldState;
 use thunder_core::transaction::Transaction;
-use std::sync::{Arc, RwLock};
 
 use crate::peer::PeerManager;
 
@@ -59,7 +59,10 @@ pub struct Node {
 impl Node {
     /// Create a new node with the given key pair and configuration.
     pub fn new(key_pair: KeyPair, config: NodeConfig) -> Self {
-        let state = Arc::new(RwLock::new(WorldState::new(&format!("{}/state", config.data_dir))));
+        let state = Arc::new(RwLock::new(WorldState::new(&format!(
+            "{}/state",
+            config.data_dir
+        ))));
         let genesis = Block::genesis();
         let validator_set = ValidatorSet::new(config.min_stake);
         let consensus = AbftConsensus::new(Vec::new());
@@ -92,7 +95,7 @@ impl Node {
         if !tx.verify_signature() {
             return Err("invalid transaction signature".to_string());
         }
-        
+
         // Strict Balance Pre-Flight Check preventing empty wallets from bypassing EVM
         let sender = self.state.read().unwrap().get_account(&tx.from);
         let total_cost = tx.value.saturating_add(tx.max_fee());
@@ -213,7 +216,7 @@ impl Node {
         // Network Congestion / aBFT Capacity Curve (PoS / High-TPS optimized)
         // Instead of PoW time-targets, aBFT fees surge ONLY if the block hits its computational byte limits.
         let target_capacity = 1000; // Expected average comfortable txs per batch
-        
+
         if block_txs.len() as u64 > target_capacity {
             // High Congestion Penalty Surge (Block capacity exceeded normal bounds)
             let overflow = block_txs.len() as u64 - target_capacity;
@@ -232,13 +235,17 @@ impl Node {
 
         // Deflationary 50/50 Protocol Split
         let validator_reward = combined_pool / 2; // 50% Minted strictly to Validator
-        // The remaining 50% is Cryptographically BURNED (Never minted into existence)
+                                                  // The remaining 50% is Cryptographically BURNED (Never minted into existence)
 
         // -------------------------------------------------------------
         // DPoS Yield Splitting (Yield Farming / Retail Validation)
         // -------------------------------------------------------------
-        let mut val_account = self.state.read().unwrap().get_account(&self.key_pair.address());
-        
+        let mut val_account = self
+            .state
+            .read()
+            .unwrap()
+            .get_account(&self.key_pair.address());
+
         let commission = (validator_reward * 5) / 100; // 5% Node Server Commission
         let delegator_pool = validator_reward - commission; // 95% Pro-rata Fractional Yield
 
@@ -250,10 +257,10 @@ impl Node {
         let payout_a = (delegator_pool * 60) / 100;
         let payout_b = (delegator_pool * 30) / 100;
         let payout_c = delegator_pool - payout_a - payout_b;
-        
+
         {
             let mut state = self.state.write().unwrap();
-            
+
             // 1. Validator purely sucks up Commission fees
             val_account.balance = val_account.balance.saturating_add(commission);
             state.set_account(&self.key_pair.address(), val_account);
@@ -303,7 +310,8 @@ impl Node {
 
 #[cfg(test)]
 mod tests {
-    use super::*; use thunder_core::state::Account;
+    use super::*;
+    use thunder_core::state::Account;
 
     fn temp_node() -> Node {
         let kp = KeyPair::generate();
@@ -336,7 +344,10 @@ mod tests {
         let recipient = KeyPair::generate();
 
         // Give the sender some coins.
-        node.state.write().unwrap().set_account(&sender.address(), Account::with_balance(1_000_000));
+        node.state
+            .write()
+            .unwrap()
+            .set_account(&sender.address(), Account::with_balance(1_000_000));
 
         let mut tx =
             Transaction::new_transfer(0, sender.address(), recipient.address(), 100, 21_000, 1);

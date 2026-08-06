@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_default_account() {
-        let mut state = temp_state();
+        let state = temp_state();
         let addr = [1u8; 20];
         let account = state.get_account(&addr);
         assert_eq!(account.balance, 0);

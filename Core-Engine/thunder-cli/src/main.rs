@@ -9,7 +9,6 @@ use clap::{Parser, Subcommand};
 
 use std::collections::HashMap;
 
-
 use thunder_core::crypto::{address_to_hex, KeyPair, SerializableKeyPair};
 use thunder_core::state::Account;
 use thunder_lang::compiler::compile_source;
@@ -187,7 +186,7 @@ fn main() {
 
                 let shared_node = std::sync::Arc::new(std::sync::RwLock::new(node));
                 let rt = tokio::runtime::Runtime::new().unwrap();
-                
+
                 // Mount Automated Block Forger (Auto-Mining Loop)
                 let forger_node = std::sync::Arc::clone(&shared_node);
                 rt.spawn(async move {
@@ -195,7 +194,7 @@ fn main() {
                     loop {
                         interval.tick().await;
                         let mut n = forger_node.write().unwrap();
-                        
+
                         // Wait, only try to forge if mempool isn't empty!
                         if n.mempool.is_empty() {
                             continue;
@@ -205,8 +204,9 @@ fn main() {
                         if let Ok(_) = n.create_event() {
                             // Automatically process round & forge
                             if let Some(block) = n.try_produce_block() {
-                                println!("\n  🔨 FORGED BLOCK #{} | {} txns | Hash: 0x{}", 
-                                    block.header.height, 
+                                println!(
+                                    "\n  🔨 FORGED BLOCK #{} | {} txns | Hash: 0x{}",
+                                    block.header.height,
                                     block.transactions.len(),
                                     hex::encode(&block.hash())[0..10].to_string()
                                 );
@@ -250,13 +250,13 @@ fn main() {
                 let mut secret_input = String::new();
                 std::io::stdin().read_line(&mut secret_input).unwrap();
                 let secret_input = secret_input.trim();
-                
+
                 let secret_array = match hex::decode(secret_input) {
                     Ok(b) if b.len() == 32 => {
                         let mut arr = [0u8; 32];
                         arr.copy_from_slice(&b);
                         arr
-                    },
+                    }
                     _ => {
                         println!("  ❌ Invalid Secret Key format (must be 32 bytes hex).");
                         return;
@@ -291,7 +291,11 @@ fn main() {
                             match client.post(rpc_url).json(&payload).send() {
                                 Ok(res) => {
                                     let json: serde_json::Value = res.json().unwrap_or_default();
-                                    let bal_str = json.get("result").and_then(|r| r.get("balance")).and_then(|v| v.as_str()).unwrap_or("0");
+                                    let bal_str = json
+                                        .get("result")
+                                        .and_then(|r| r.get("balance"))
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("0");
                                     let bal_u64: u64 = bal_str.parse().unwrap_or(0);
                                     let dec_bal = bal_u64 as f64 / 1_000_000_000.0;
                                     println!("  💰 Balance: {:.9} THDR", dec_bal);
@@ -308,13 +312,20 @@ fn main() {
                             let nano_requested = (requested * 1_000_000_000.0) as u64;
 
                             println!("  ↳ Requesting {} THDR from Genesis Faucet...", requested);
-                            
+
                             // Dynamic Gas Price Oracles
                             let gas_payload = serde_json::json!({ "jsonrpc": "2.0", "method": "thunder_gasPrice", "id": 1 });
-                            let dynamic_gas_price = match client.post(rpc_url).json(&gas_payload).send() {
-                                Ok(res) => res.json::<serde_json::Value>().unwrap_or_default().get("result").and_then(|r| r.get("gas_price")).and_then(|v| v.as_u64()).unwrap_or(1),
-                                Err(_) => 1,
-                            };
+                            let dynamic_gas_price =
+                                match client.post(rpc_url).json(&gas_payload).send() {
+                                    Ok(res) => res
+                                        .json::<serde_json::Value>()
+                                        .unwrap_or_default()
+                                        .get("result")
+                                        .and_then(|r| r.get("gas_price"))
+                                        .and_then(|v| v.as_u64())
+                                        .unwrap_or(1),
+                                    Err(_) => 1,
+                                };
 
                             let payload = serde_json::json!({
                                 "jsonrpc": "2.0",
@@ -326,7 +337,12 @@ fn main() {
                                 Ok(res) => {
                                     let json: serde_json::Value = res.json().unwrap_or_default();
                                     if let Some(res) = json.get("result") {
-                                        println!("  ✅ Faucet Success! Tx Hash: {}", res.get("tx_hash").and_then(|v| v.as_str()).unwrap_or(""));
+                                        println!(
+                                            "  ✅ Faucet Success! Tx Hash: {}",
+                                            res.get("tx_hash")
+                                                .and_then(|v| v.as_str())
+                                                .unwrap_or("")
+                                        );
                                     } else {
                                         println!("  ❌ Faucet Failed: {:?}", json.get("error"));
                                     }
@@ -349,14 +365,25 @@ fn main() {
                             let nano_amount = (amount_float * 1_000_000_000.0) as u64;
 
                             if let Ok(to_addr) = thunder_core::crypto::address_from_hex(to_str) {
-                                let unique_nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos() as u64;
-                                
+                                let unique_nonce = std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .subsec_nanos()
+                                    as u64;
+
                                 // Fetch Congestion Difficulty
                                 let gas_payload = serde_json::json!({ "jsonrpc": "2.0", "method": "thunder_gasPrice", "id": 1 });
-                                let dynamic_gas_price = match client.post(rpc_url).json(&gas_payload).send() {
-                                    Ok(res) => res.json::<serde_json::Value>().unwrap_or_default().get("result").and_then(|r| r.get("gas_price")).and_then(|v| v.as_u64()).unwrap_or(1),
-                                    Err(_) => 1,
-                                };
+                                let dynamic_gas_price =
+                                    match client.post(rpc_url).json(&gas_payload).send() {
+                                        Ok(res) => res
+                                            .json::<serde_json::Value>()
+                                            .unwrap_or_default()
+                                            .get("result")
+                                            .and_then(|r| r.get("gas_price"))
+                                            .and_then(|v| v.as_u64())
+                                            .unwrap_or(1),
+                                        Err(_) => 1,
+                                    };
 
                                 let mut tx = thunder_core::transaction::Transaction::new_transfer(
                                     unique_nonce,
@@ -364,7 +391,7 @@ fn main() {
                                     to_addr,
                                     nano_amount,
                                     21000,
-                                    dynamic_gas_price
+                                    dynamic_gas_price,
                                 );
                                 tx.sign(&key_pair);
                                 let hex_data = hex::encode(bincode::serialize(&tx).unwrap());
@@ -377,11 +404,21 @@ fn main() {
                                 });
                                 match client.post(rpc_url).json(&payload).send() {
                                     Ok(res) => {
-                                        let json: serde_json::Value = res.json().unwrap_or_default();
+                                        let json: serde_json::Value =
+                                            res.json().unwrap_or_default();
                                         if let Some(result) = json.get("result") {
-                                            println!("  ✅ Transaction Submitted! Hash: {}", result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or(""));
+                                            println!(
+                                                "  ✅ Transaction Submitted! Hash: {}",
+                                                result
+                                                    .get("tx_hash")
+                                                    .and_then(|v| v.as_str())
+                                                    .unwrap_or("")
+                                            );
                                         } else {
-                                            println!("  ❌ JSON-RPC Error: {:?}", json.get("error"));
+                                            println!(
+                                                "  ❌ JSON-RPC Error: {:?}",
+                                                json.get("error")
+                                            );
                                         }
                                     }
                                     Err(e) => println!("  ❌ Fallback Error: {}", e),
@@ -400,24 +437,27 @@ fn main() {
             }
             WalletCommands::Balance { address } => {
                 println!("⚡ Fetching Balance for {}", address);
-                
+
                 let rpc_url = "http://127.0.0.1:8080";
                 let client = match reqwest::blocking::Client::new() {
                     client => client,
                 };
-                
+
                 let payload = serde_json::json!({
                     "jsonrpc": "2.0",
                     "method": "thunder_getBalance",
                     "params": { "address": address },
                     "id": 1
                 });
-                
+
                 match client.post(rpc_url).json(&payload).send() {
                     Ok(res) => {
                         let json: serde_json::Value = res.json().unwrap_or_default();
                         if let Some(result) = json.get("result") {
-                            let bal = result.get("balance").and_then(|v| v.as_str()).unwrap_or("0");
+                            let bal = result
+                                .get("balance")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("0");
                             println!("  ✅ Balance: {} THDR", bal);
                         } else {
                             println!("  ❌ RPC Error: {:?}", json.get("error"));
@@ -437,14 +477,14 @@ fn main() {
             } => {
                 println!("⚡ Initiating Transaction to {}", to);
                 println!("  To authenticate, please provide your Wallet Secret Key.");
-                
+
                 use std::io::{self, Write};
                 print!("  [🔑] Enter Secret Key (Hex): ");
                 io::stdout().flush().unwrap();
                 let mut secret_input = String::new();
                 io::stdin().read_line(&mut secret_input).unwrap();
                 let secret_input = secret_input.trim();
-                
+
                 let secret_bytes = match hex::decode(secret_input) {
                     Ok(b) if b.len() == 32 => {
                         let mut arr = [0u8; 32];
@@ -456,7 +496,7 @@ fn main() {
                         return;
                     }
                 };
-                
+
                 let key_pair = KeyPair::from_secret_bytes(&secret_bytes);
                 let to_addr = match thunder_core::crypto::address_from_hex(&to) {
                     Ok(addr) => addr,
@@ -465,25 +505,32 @@ fn main() {
                         return;
                     }
                 };
-                
-                println!("  ↳ Signing transaction as 0x{}...", hex::encode(key_pair.address()));
+
+                println!(
+                    "  ↳ Signing transaction as 0x{}...",
+                    hex::encode(key_pair.address())
+                );
                 // Dynamically injecting nanosecond timestamps ensuring distinct uniqueness against mempool collision caching.
-                let unique_nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos() as u64;
+                let unique_nonce = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .subsec_nanos() as u64;
                 let mut tx = thunder_core::transaction::Transaction::new_transfer(
-                    unique_nonce, 
+                    unique_nonce,
                     key_pair.address(),
                     to_addr,
                     amount,
                     gas_limit,
-                    1
+                    1,
                 );
                 tx.sign(&key_pair);
-                let serialized_tx = bincode::serialize(&tx).expect("Failed to serialize transaction");
+                let serialized_tx =
+                    bincode::serialize(&tx).expect("Failed to serialize transaction");
                 let hex_data = hex::encode(serialized_tx);
-                
+
                 let rpc_url = "http://127.0.0.1:8080";
                 let client = reqwest::blocking::Client::new();
-                
+
                 let payload = serde_json::json!({
                     "jsonrpc": "2.0",
                     "method": "thunder_sendTransaction",
@@ -492,13 +539,16 @@ fn main() {
                     },
                     "id": 1
                 });
-                
+
                 match client.post(rpc_url).json(&payload).send() {
                     Ok(res) => {
                         let json: serde_json::Value = res.json().unwrap_or_default();
                         if let Some(result) = json.get("result") {
                             println!("  ✅ Transaction Submitted Successfully!");
-                            println!("  tx_hash : {}", result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or(""));
+                            println!(
+                                "  tx_hash : {}",
+                                result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or("")
+                            );
                             println!("  amount  : {} THDR", amount);
                             println!("  gas     : {}", gas_limit);
                         } else {
