@@ -101,10 +101,10 @@ impl Node {
         let total_cost = tx.value.saturating_add(tx.max_fee());
         if sender.balance < total_cost {
             return Err(format!(
-                "Insufficient Balance. Required: {:.9} THDR (Amount: {:.9} + Gas: {:.9}), Available: {:.9} THDR", 
-                total_cost as f64 / 1_000_000_000.0, 
-                tx.value as f64 / 1_000_000_000.0, 
-                tx.max_fee() as f64 / 1_000_000_000.0, 
+                "Insufficient Balance. Required: {:.9} THDR (Amount: {:.9} + Gas: {:.9}), Available: {:.9} THDR",
+                total_cost as f64 / 1_000_000_000.0,
+                tx.value as f64 / 1_000_000_000.0,
+                tx.max_fee() as f64 / 1_000_000_000.0,
                 sender.balance as f64 / 1_000_000_000.0
             ));
         }

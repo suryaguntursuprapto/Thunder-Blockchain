@@ -250,7 +250,7 @@ impl RpcHandler {
                     let mapped_txs: Vec<serde_json::Value> = block.transactions.iter().map(|tx| {
                         gas_used += tx.gas_limit;
                         fees_nanothdr += tx.gas_limit * tx.gas_price;
-                        
+
                         serde_json::json!({
                             "hash": format!("0x{}", thunder_core::crypto::hash_to_hex(&tx.hash())),
                             "from": thunder_core::crypto::address_to_hex(&tx.from),
