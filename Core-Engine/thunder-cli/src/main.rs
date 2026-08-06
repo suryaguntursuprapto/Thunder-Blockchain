@@ -190,11 +190,15 @@ fn main() {
                 // Mount Automated Block Forger (Auto-Mining Loop)
                 let forger_node = std::sync::Arc::clone(&shared_node);
                 rt.spawn(async move {
-                    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3));
+                    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50));
                     loop {
                         interval.tick().await;
                         let mut n = forger_node.write().unwrap();
 
+                        // Prevent spamming empty blocks if there's no tx
+                        if n.mempool.is_empty() {
+                            continue;
+                        }
 
                         // Bundle pending txns into DAG Event
                         if n.create_event().is_ok() {
@@ -464,8 +468,13 @@ fn main() {
                                     
                                     println!("  ⚡ Node is fully synced. Terminal is now locked in Forging Mode.");
                                     loop {
-                                        std::thread::sleep(std::time::Duration::from_secs(3));
+                                        std::thread::sleep(std::time::Duration::from_millis(50));
                                         let mut n = forger_node.write().unwrap();
+                                        
+                                        if n.mempool.is_empty() {
+                                            continue;
+                                        }
+
                                         if n.create_event().is_ok() {
                                             if let Some(block) = n.try_produce_block() {
                                                 println!("  🔨 FORGED BLOCK #{} | {} txns | Hash: 0x{}", block.header.height, block.transactions.len(), &hex::encode(block.hash())[0..10]);
