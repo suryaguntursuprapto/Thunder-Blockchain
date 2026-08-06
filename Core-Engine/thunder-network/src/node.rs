@@ -220,7 +220,7 @@ impl Node {
         if block_txs.len() as u64 > target_capacity {
             // High Congestion Penalty Surge (Block capacity exceeded normal bounds)
             let overflow = block_txs.len() as u64 - target_capacity;
-            base_fee = base_fee + (overflow * 2);
+            base_fee += (overflow * 2);
         } else if block_txs.len() < 100 {
             // Cool Down Low Network Traffic
             base_fee = 1;
