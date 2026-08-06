@@ -20,15 +20,18 @@ export class ThunderProvider {
     }
 
     async getChainId(): Promise<number> {
-        return await this.rpcCall<number>('thunder_chainId');
+        const res = await this.rpcCall<any>('thunder_chainId');
+        return res.chain_id ? Number(res.chain_id) : Number(res);
     }
 
     async getBalance(addressHex: string): Promise<number> {
-        return await this.rpcCall<number>('thunder_balance', { address: addressHex });
+        const res = await this.rpcCall<any>('thunder_getBalance', { address: addressHex });
+        return res.balance ? Number(res.balance) : 0;
     }
 
     async getNonce(addressHex: string): Promise<number> {
-        return await this.rpcCall<number>('thunder_nonce', { address: addressHex });
+        const res = await this.rpcCall<any>('thunder_getNonce', { address: addressHex });
+        return res.nonce ? Number(res.nonce) : 0;
     }
 
     async sendTransaction(tx: Transaction): Promise<string> {
@@ -37,7 +40,8 @@ export class ThunderProvider {
             .map(b => b.toString(16).padStart(2, '0'))
             .join('');
         
-        return await this.rpcCall<string>('thunder_sendTransaction', { tx: hex });
+        // server.rs expects 'data' not 'tx'
+        return await this.rpcCall<string>('thunder_sendTransaction', { data: hex });
     }
 
     async call(addressHex: string, publicKeyHex: string, dataHex: string): Promise<string> {
@@ -49,6 +53,7 @@ export class ThunderProvider {
     }
 
     async compileContract(source: string): Promise<string> {
-        return await this.rpcCall<string>('thunder_compileContract', { source });
+        const res = await this.rpcCall<any>('thunder_compileContract', { source });
+        return res.bytecode ? res.bytecode : res;
     }
 }

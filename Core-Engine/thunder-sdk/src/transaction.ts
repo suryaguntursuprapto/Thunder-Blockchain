@@ -31,17 +31,20 @@ export class Transaction {
      * Excludes signature and public_key for signing (hash generation)
      */
     serializeForSignature(): Uint8Array {
-        const ser = new BincodeSerializer();
-        ser.writeU64(this.chain_id);
-        ser.writeU64(this.nonce);
-        ser.writeBytes(this.from);
-        ser.writeBytes(this.to);
-        ser.writeU64(this.value);
-        ser.writeVec(this.data);
-        ser.writeU64(this.gas_limit);
-        ser.writeU64(this.gas_price);
-        ser.writeU32(this.kind);
-        return ser.getBytes();
+        const buf: number[] = [];
+        const pushU64 = (val: bigint) => {
+            for (let i = 0n; i < 8n; i++) buf.push(Number((val >> (i * 8n)) & 0xffn));
+        };
+        pushU64(this.chain_id);
+        pushU64(this.nonce);
+        buf.push(...Array.from(this.from));
+        buf.push(...Array.from(this.to));
+        pushU64(this.value);
+        buf.push(...Array.from(this.data));
+        pushU64(this.gas_limit);
+        pushU64(this.gas_price);
+        buf.push(this.kind); // u8
+        return new Uint8Array(buf);
     }
 
     /**

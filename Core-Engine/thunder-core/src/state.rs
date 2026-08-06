@@ -146,7 +146,7 @@ impl WorldState {
                 self.set_account(&tx.to, recipient);
             }
             TransactionKind::ContractDeploy => {
-                let contract_addr = self.derive_contract_address(&tx.from, tx.nonce - 1);
+                let contract_addr = self.derive_contract_address(&tx.from, tx.nonce);
                 let mut contract = Account::new();
                 contract.code = tx.data.clone();
                 contract.code_hash = crypto::hash_sha256(&tx.data);

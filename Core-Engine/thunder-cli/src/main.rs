@@ -218,7 +218,7 @@ fn main() {
 
                 // Mount the HTTP JSON-RPC Server
                 rt.block_on(async {
-                    thunder_rpc::start_server(8080, 100, genesis_addr, shared_node).await;
+                    thunder_rpc::start_server(8085, 100, genesis_addr, shared_node).await;
                 });
             }
             NodeCommands::Status => {

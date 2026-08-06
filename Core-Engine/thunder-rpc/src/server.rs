@@ -127,6 +127,32 @@ impl RpcHandler {
                 )
             }
 
+            "thunder_getNonce" => {
+                let address_str = request
+                    .params
+                    .get("address")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0x0");
+
+                let mut nonce = 0;
+                if let Ok(addr) = thunder_core::crypto::address_from_hex(address_str) {
+                    let account = context
+                        .node
+                        .read()
+                        .unwrap()
+                        .state
+                        .read()
+                        .unwrap()
+                        .get_account(&addr);
+                    nonce = account.nonce;
+                }
+
+                JsonRpcResponse::success(
+                    request.id,
+                    serde_json::json!({ "address": address_str, "nonce": nonce }),
+                )
+            }
+
             "thunder_gasPrice" => {
                 let node = context.node.read().unwrap();
                 // Dynamic EIP-1559 logic: Base 1 Gwei + 5 Gwei penalty per pending mempool transaction (Congestion/Difficulty)

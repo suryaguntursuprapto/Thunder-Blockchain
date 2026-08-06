@@ -1,0 +1,11 @@
+contract Counter {
+    state count: u64;
+
+    fn init() {
+        self.count = 0;
+    }
+
+    fn increment() {
+        self.count = self.count + 1;
+    }
+}
