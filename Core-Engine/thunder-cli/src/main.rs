@@ -190,7 +190,8 @@ fn main() {
                 // Mount Automated Block Forger (Auto-Mining Loop)
                 let forger_node = std::sync::Arc::clone(&shared_node);
                 rt.spawn(async move {
-                    let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(50));
+                    let mut interval =
+                        tokio::time::interval(tokio::time::Duration::from_millis(50));
                     loop {
                         interval.tick().await;
                         let mut n = forger_node.write().unwrap();
@@ -428,8 +429,7 @@ fn main() {
                                 println!("  ❌ Invalid recipient address format.");
                             }
                         }
-                        
-                        
+
                         "4" => {
                             print!("  [🔑] Enter local port for your Validator (e.g., 9001): ");
                             std::io::Write::flush(&mut std::io::stdout()).unwrap();
@@ -449,39 +449,46 @@ fn main() {
                             });
 
                             println!("  ⏳ Staking 1,000 THDR to Master Bootnode...");
-                            
+
                             match client.post(rpc_url).json(&payload).send() {
                                 Ok(_) => {
                                     println!("  ✅ Validator Staking Confirmed!");
                                     println!("  🚀 Mutating terminal into Active Block Forger on Port {}...", local_port);
-                                    
+
                                     let config = thunder_network::node::NodeConfig {
                                         data_dir: format!("/tmp/validator_node_{}", local_port),
                                         listen_port: local_port,
                                         ..Default::default()
                                     };
-                                    let mut node = thunder_network::node::Node::new(key_pair.clone(), config);
+                                    let mut node =
+                                        thunder_network::node::Node::new(key_pair.clone(), config);
                                     let _ = node.register_as_validator(1000000000000u64);
 
-                                    let shared_node = std::sync::Arc::new(std::sync::RwLock::new(node));
+                                    let shared_node =
+                                        std::sync::Arc::new(std::sync::RwLock::new(node));
                                     let forger_node = std::sync::Arc::clone(&shared_node);
-                                    
+
                                     println!("  ⚡ Node is fully synced. Terminal is now locked in Forging Mode.");
                                     loop {
                                         std::thread::sleep(std::time::Duration::from_millis(50));
                                         let mut n = forger_node.write().unwrap();
-                                        
+
                                         if n.mempool.is_empty() {
                                             continue;
                                         }
 
                                         if n.create_event().is_ok() {
                                             if let Some(block) = n.try_produce_block() {
-                                                println!("  🔨 FORGED BLOCK #{} | {} txns | Hash: 0x{}", block.header.height, block.transactions.len(), &hex::encode(block.hash())[0..10]);
+                                                println!(
+                                                    "  🔨 FORGED BLOCK #{} | {} txns | Hash: 0x{}",
+                                                    block.header.height,
+                                                    block.transactions.len(),
+                                                    &hex::encode(block.hash())[0..10]
+                                                );
                                             }
                                         }
                                     }
-                                },
+                                }
                                 Err(e) => println!("  ❌ Staking Failed: {}", e),
                             }
                         }
