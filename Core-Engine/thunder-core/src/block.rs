@@ -77,7 +77,7 @@ impl Block {
             tx_root: [0u8; 32],
             validator: [0u8; 20],
             validator_pubkey: [0u8; 32],
-            base_fee: 1, // Genesis minimum 1 Gwei Base Fee
+            base_fee: 1,                // Genesis minimum 1 Gwei Base Fee
             reward: 50 * 1_000_000_000, // Genesis standard 50 THDR subsidy tracking 9-Decimals natively
             signature: [0u8; 64],
         };
@@ -172,6 +172,8 @@ mod tests {
             validator.address(),
             validator.public_key(),
             1000,
+            1,
+            5000000,
         );
         block.sign(&validator);
 
@@ -198,6 +200,8 @@ mod tests {
             validator.address(),
             validator.public_key(),
             100,
+            1,
+            5000000,
         );
         b1.sign(&validator);
 
@@ -208,6 +212,8 @@ mod tests {
             validator.address(),
             validator.public_key(),
             200,
+            1,
+            5000000,
         );
         b2.sign(&validator);
 
