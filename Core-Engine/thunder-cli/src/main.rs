@@ -195,10 +195,6 @@ fn main() {
                         interval.tick().await;
                         let mut n = forger_node.write().unwrap();
 
-                        // Wait, only try to forge if mempool isn't empty!
-                        if n.mempool.is_empty() {
-                            continue;
-                        }
 
                         // Bundle pending txns into DAG Event
                         if n.create_event().is_ok() {
@@ -274,8 +270,9 @@ fn main() {
                     println!("  [1] Check Balance");
                     println!("  [2] Request Testnet THDR (Faucet)");
                     println!("  [3] Send THDR");
-                    println!("  [4] Exit");
-                    print!("  > Choose an option (1-4): ");
+                    println!("  [4] Stake THDR & Launch Validator Node");
+                    println!("  [5] Exit");
+                    print!("  > Choose an option (1-5): ");
                     std::io::Write::flush(&mut std::io::stdout()).unwrap();
 
                     let mut choice = String::new();
@@ -427,7 +424,60 @@ fn main() {
                                 println!("  ❌ Invalid recipient address format.");
                             }
                         }
+                        
+                        
                         "4" => {
+                            print!("  [🔑] Enter local port for your Validator (e.g., 9001): ");
+                            std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                            let mut port_str = String::new();
+                            std::io::stdin().read_line(&mut port_str).unwrap();
+                            let local_port = port_str.trim().parse::<u16>().unwrap_or(9001);
+
+                            let payload = serde_json::json!({
+                                "jsonrpc": "2.0",
+                                "method": "thunder_registerValidator",
+                                "params": {
+                                    "address": format!("0x{}", my_address),
+                                    "public_key": hex::encode(key_pair.public_key()),
+                                    "stake": 1000000000000u64
+                                },
+                                "id": 1
+                            });
+
+                            println!("  ⏳ Staking 1,000 THDR to Master Bootnode...");
+                            
+                            match client.post(rpc_url).json(&payload).send() {
+                                Ok(_) => {
+                                    println!("  ✅ Validator Staking Confirmed!");
+                                    println!("  🚀 Mutating terminal into Active Block Forger on Port {}...", local_port);
+                                    
+                                    let config = thunder_network::node::NodeConfig {
+                                        data_dir: format!("/tmp/validator_node_{}", local_port),
+                                        listen_port: local_port,
+                                        ..Default::default()
+                                    };
+                                    let mut node = thunder_network::node::Node::new(key_pair.clone(), config);
+                                    let _ = node.register_as_validator(1000000000000u64);
+
+                                    let shared_node = std::sync::Arc::new(std::sync::RwLock::new(node));
+                                    let forger_node = std::sync::Arc::clone(&shared_node);
+                                    
+                                    println!("  ⚡ Node is fully synced. Terminal is now locked in Forging Mode.");
+                                    loop {
+                                        std::thread::sleep(std::time::Duration::from_secs(3));
+                                        let mut n = forger_node.write().unwrap();
+                                        if n.create_event().is_ok() {
+                                            if let Some(block) = n.try_produce_block() {
+                                                println!("  🔨 FORGED BLOCK #{} | {} txns | Hash: 0x{}", block.header.height, block.transactions.len(), &hex::encode(block.hash())[0..10]);
+                                            }
+                                        }
+                                    }
+                                },
+                                Err(e) => println!("  ❌ Staking Failed: {}", e),
+                            }
+                        }
+
+                        "5" => {
                             println!("  👋 Exiting Wallet Console.");
                             break;
                         }
