@@ -15,3 +15,6 @@ warp = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+bincode = { workspace = true }
+hex = { workspace = true }
+thunder-network = { path = "../thunder-network" }

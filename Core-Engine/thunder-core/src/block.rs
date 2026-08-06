@@ -31,6 +31,10 @@ pub struct BlockHeader {
     pub validator: Address,
     /// Validator's public key.
     pub validator_pubkey: PublicKey,
+    /// Base Fee burned per transaction recursively (EIP-1559 Gwei rules)
+    pub base_fee: u64,
+    /// Absolute Total Payout received by the Validator (Base Subsidy + Priority Tips)
+    pub reward: u64,
     /// Validator's signature over the header hash.
     #[serde(with = "BigArray")]
     pub signature: Signature,
@@ -47,6 +51,8 @@ impl BlockHeader {
         buf.extend_from_slice(&self.tx_root);
         buf.extend_from_slice(&self.validator);
         buf.extend_from_slice(&self.validator_pubkey);
+        buf.extend_from_slice(&self.base_fee.to_le_bytes());
+        buf.extend_from_slice(&self.reward.to_le_bytes());
         crypto::hash_sha256(&buf)
     }
 }
@@ -71,6 +77,8 @@ impl Block {
             tx_root: [0u8; 32],
             validator: [0u8; 20],
             validator_pubkey: [0u8; 32],
+            base_fee: 1, // Genesis minimum 1 Gwei Base Fee
+            reward: 50 * 1_000_000_000, // Genesis standard 50 THDR subsidy tracking 9-Decimals natively
             signature: [0u8; 64],
         };
         Self {
@@ -87,6 +95,8 @@ impl Block {
         validator: Address,
         validator_pubkey: PublicKey,
         timestamp: u64,
+        base_fee: u64,
+        reward: u64,
     ) -> Self {
         let tx_hashes: Vec<Hash> = transactions.iter().map(|tx| tx.hash()).collect();
         let tx_root = merkle::compute_merkle_root(&tx_hashes);
@@ -99,6 +109,8 @@ impl Block {
             tx_root,
             validator,
             validator_pubkey,
+            base_fee,
+            reward,
             signature: [0u8; 64], // Placeholder — must be signed afterwards.
         };
 
