@@ -189,7 +189,7 @@ impl OpCode {
 // ── Instruction ────────────────────────────────────────────────────────────
 
 /// A decoded instruction: opcode + optional operand.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Instruction {
     pub opcode: OpCode,
     /// Immediate operand (used by Push, Jump, Call, LoadLocal, StoreLocal, etc).

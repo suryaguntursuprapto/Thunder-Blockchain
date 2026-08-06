@@ -33,6 +33,8 @@ pub enum TransactionKind {
 /// A single transaction on the Thunder Blockchain.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Transaction {
+    /// Chain ID for replay protection (e.g., 1 = Mainnet, 2 = Testnet)
+    pub chain_id: u64,
     /// Sender nonce (monotonically increasing per account).
     pub nonce: u64,
     /// Sender address.
@@ -61,6 +63,7 @@ impl Transaction {
 
     /// Create a new **unsigned** transfer transaction.
     pub fn new_transfer(
+        chain_id: u64,
         nonce: u64,
         from: Address,
         to: Address,
@@ -69,6 +72,7 @@ impl Transaction {
         gas_price: u64,
     ) -> Self {
         Self {
+            chain_id,
             nonce,
             from,
             to,
@@ -84,6 +88,7 @@ impl Transaction {
 
     /// Create a new **unsigned** contract-deploy transaction.
     pub fn new_deploy(
+        chain_id: u64,
         nonce: u64,
         from: Address,
         bytecode: Vec<u8>,
@@ -91,6 +96,7 @@ impl Transaction {
         gas_price: u64,
     ) -> Self {
         Self {
+            chain_id,
             nonce,
             from,
             to: [0u8; 20], // zero-address → deploy
@@ -106,6 +112,7 @@ impl Transaction {
 
     /// Create a new **unsigned** contract-call transaction.
     pub fn new_call(
+        chain_id: u64,
         nonce: u64,
         from: Address,
         to: Address,
@@ -115,6 +122,7 @@ impl Transaction {
         gas_price: u64,
     ) -> Self {
         Self {
+            chain_id,
             nonce,
             from,
             to,
@@ -130,6 +138,7 @@ impl Transaction {
 
     /// Create a new **unsigned** stake transaction.
     pub fn new_stake(
+        chain_id: u64,
         nonce: u64,
         from: Address,
         amount: u64,
@@ -137,6 +146,7 @@ impl Transaction {
         gas_price: u64,
     ) -> Self {
         Self {
+            chain_id,
             nonce,
             from,
             to: [0u8; 20],
@@ -155,6 +165,7 @@ impl Transaction {
     /// Compute the bytes that are signed (everything except signature).
     pub fn signable_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
+        buf.extend_from_slice(&self.chain_id.to_le_bytes());
         buf.extend_from_slice(&self.nonce.to_le_bytes());
         buf.extend_from_slice(&self.from);
         buf.extend_from_slice(&self.to);
@@ -220,7 +231,7 @@ mod tests {
         let sender = KeyPair::generate();
         let recipient = KeyPair::generate();
         let mut tx =
-            Transaction::new_transfer(0, sender.address(), recipient.address(), 1000, 21000, 1);
+            Transaction::new_transfer(1, 0, sender.address(), recipient.address(), 1000, 21000, 1);
         tx.sign(&sender);
         assert!(tx.verify_signature());
     }
@@ -230,7 +241,7 @@ mod tests {
         let sender = KeyPair::generate();
         let recipient = KeyPair::generate();
         let mut tx =
-            Transaction::new_transfer(0, sender.address(), recipient.address(), 1000, 21000, 1);
+            Transaction::new_transfer(1, 0, sender.address(), recipient.address(), 1000, 21000, 1);
         tx.sign(&sender);
 
         // Tamper with the value after signing
@@ -242,7 +253,7 @@ mod tests {
     fn test_deploy_tx() {
         let sender = KeyPair::generate();
         let bytecode = vec![0x01, 0x02, 0x03, 0x04];
-        let mut tx = Transaction::new_deploy(0, sender.address(), bytecode.clone(), 100_000, 1);
+        let mut tx = Transaction::new_deploy(1, 0, sender.address(), bytecode.clone(), 100_000, 1);
         tx.sign(&sender);
         assert!(tx.verify_signature());
         assert_eq!(tx.kind, TransactionKind::ContractDeploy);
@@ -253,7 +264,7 @@ mod tests {
     fn test_hash_deterministic() {
         let sender = KeyPair::generate();
         let recipient = KeyPair::generate();
-        let tx = Transaction::new_transfer(0, sender.address(), recipient.address(), 100, 21000, 1);
+        let tx = Transaction::new_transfer(1, 0, sender.address(), recipient.address(), 100, 21000, 1);
         assert_eq!(tx.hash(), tx.hash());
     }
 }

@@ -32,16 +32,19 @@ impl Parser {
         let name = self.expect_identifier()?;
         self.expect(TokenKind::LeftBrace)?;
 
+        let mut structs = Vec::new();
         let mut state_vars = Vec::new();
         let mut functions = Vec::new();
 
         while !self.check(TokenKind::RightBrace) && !self.check(TokenKind::Eof) {
-            if self.check(TokenKind::State) {
+            if self.check(TokenKind::Struct) {
+                structs.push(self.parse_struct()?);
+            } else if self.check(TokenKind::State) {
                 state_vars.push(self.parse_state_var()?);
             } else if self.check(TokenKind::Fn) {
                 functions.push(self.parse_function()?);
             } else {
-                return Err(self.error("expected 'state' or 'fn'"));
+                return Err(self.error("expected 'struct', 'state', or 'fn'"));
             }
         }
 
@@ -49,9 +52,33 @@ impl Parser {
 
         Ok(Contract {
             name,
+            structs,
             state_vars,
             functions,
         })
+    }
+
+    // ── Structs ────────────────────────────────────────────────────────
+
+    fn parse_struct(&mut self) -> Result<StructDef, ParseError> {
+        self.expect(TokenKind::Struct)?;
+        let name = self.expect_identifier()?;
+        self.expect(TokenKind::LeftBrace)?;
+
+        let mut fields = Vec::new();
+        while !self.check(TokenKind::RightBrace) && !self.check(TokenKind::Eof) {
+            let field_name = self.expect_identifier()?;
+            self.expect(TokenKind::Colon)?;
+            let ty = self.parse_type()?;
+            self.expect(TokenKind::Semicolon)?;
+            fields.push(Parameter {
+                name: field_name,
+                ty,
+            });
+        }
+        self.expect(TokenKind::RightBrace)?;
+
+        Ok(StructDef { name, fields })
     }
 
     // ── State Variables ────────────────────────────────────────────────
@@ -124,6 +151,7 @@ impl Parser {
                 self.expect(TokenKind::Gt)?;
                 Ok(Type::Map(Box::new(key_type), Box::new(value_type)))
             }
+            TokenKind::Identifier(name) => Ok(Type::Struct(name.clone())),
             _ => Err(self.error_at(&token, "expected type")),
         }
     }
@@ -445,7 +473,19 @@ impl Parser {
                 operand: Box::new(operand),
             });
         }
-        self.parse_primary()
+        self.parse_postfix()
+    }
+
+    fn parse_postfix(&mut self) -> Result<Expression, ParseError> {
+        let mut expr = self.parse_primary()?;
+        while self.match_token(TokenKind::Dot) {
+            let field = self.expect_identifier()?;
+            expr = Expression::StructFieldAccess {
+                target: Box::new(expr),
+                field,
+            };
+        }
+        Ok(expr)
     }
 
     fn parse_primary(&mut self) -> Result<Expression, ParseError> {
@@ -499,6 +539,26 @@ impl Parser {
                     }
                     self.expect(TokenKind::RightParen)?;
                     Ok(Expression::FunctionCall { name, args })
+                } else if self.check(TokenKind::LeftBrace) {
+                    // Struct instantiation.
+                    self.expect(TokenKind::LeftBrace)?;
+                    let mut fields = Vec::new();
+                    if !self.check(TokenKind::RightBrace) {
+                        loop {
+                            let field_name = self.expect_identifier()?;
+                            self.expect(TokenKind::Colon)?;
+                            let expr = self.parse_expression()?;
+                            fields.push((field_name, expr));
+                            if !self.match_token(TokenKind::Comma) {
+                                break;
+                            }
+                            if self.check(TokenKind::RightBrace) {
+                                break;
+                            }
+                        }
+                    }
+                    self.expect(TokenKind::RightBrace)?;
+                    Ok(Expression::StructInit { name, fields })
                 } else {
                     Ok(Expression::Variable(name))
                 }
@@ -800,5 +860,31 @@ contract Token {
         assert_eq!(program.contract.name, "Token");
         assert_eq!(program.contract.state_vars.len(), 2);
         assert_eq!(program.contract.functions.len(), 3);
+    }
+    #[test]
+    fn test_structs() {
+        let src = r#"
+contract NFT {
+    struct Metadata {
+        name: string;
+        uri: string;
+    }
+
+    state data: Metadata;
+
+    fn mint() {
+        let x = Metadata {
+            name: "test",
+            uri: "https://example.com",
+        };
+        let y = x.name;
+    }
+}
+        "#;
+        let program = parse_source(src).unwrap();
+        assert_eq!(program.contract.name, "NFT");
+        assert_eq!(program.contract.structs.len(), 1);
+        assert_eq!(program.contract.structs[0].name, "Metadata");
+        assert_eq!(program.contract.structs[0].fields.len(), 2);
     }
 }

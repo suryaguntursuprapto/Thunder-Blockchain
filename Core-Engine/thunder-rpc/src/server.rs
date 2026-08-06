@@ -62,19 +62,19 @@ impl JsonRpcResponse {
 
 /// Shared state context injected into the RPC Server.
 pub struct RpcContext {
-    pub chain_id: String,
+    pub chain_id: u64,
     pub genesis_addr: String,
     pub node: std::sync::Arc<std::sync::RwLock<thunder_network::node::Node>>,
 }
 
 impl RpcContext {
     pub fn new(
-        chain_id: &str,
+        chain_id: u64,
         genesis_addr: String,
         node: std::sync::Arc<std::sync::RwLock<thunder_network::node::Node>>,
     ) -> Self {
         Self {
-            chain_id: chain_id.to_string(),
+            chain_id,
             genesis_addr,
             node,
         }
@@ -154,6 +154,14 @@ impl RpcHandler {
 
                 match parse_res {
                     Ok(tx) => {
+                        if tx.chain_id != context.chain_id {
+                            return JsonRpcResponse::error(
+                                request.id,
+                                -32000,
+                                &format!("Invalid Chain ID. Expected {}, got {}", context.chain_id, tx.chain_id),
+                            );
+                        }
+                        
                         let hash = thunder_core::crypto::hash_to_hex(&tx.hash());
                         match context.node.write().unwrap().add_transaction(tx) {
                             Ok(_) => JsonRpcResponse::success(
@@ -237,7 +245,7 @@ impl RpcHandler {
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap()
                             .subsec_nanos() as u64;
-                        let mut tx = thunder_core::transaction::Transaction::new_transfer(
+                        let mut tx = thunder_core::transaction::Transaction::new_transfer(1, 
                             unique_nonce,
                             n.key_pair.address(),
                             to_addr,
@@ -475,17 +483,83 @@ impl RpcHandler {
                     .unwrap_or("");
 
                 match thunder_lang::compile_source(source) {
-                    Ok(compiled) => JsonRpcResponse::success(
-                        request.id,
-                        serde_json::json!({
-                            "name": compiled.name,
-                            "bytecode_length": compiled.instructions.len(),
-                            "functions": compiled.function_table.keys()
-                                .collect::<Vec<_>>(),
-                            "state_slots": compiled.state_slots,
-                        }),
-                    ),
+                    Ok(compiled) => {
+                        let bytecode = hex::encode(bincode::serialize(&compiled).unwrap());
+                        JsonRpcResponse::success(
+                            request.id,
+                            serde_json::json!({
+                                "name": compiled.name,
+                                "bytecode_length": compiled.instructions.len(),
+                                "functions": compiled.function_table.keys()
+                                    .collect::<Vec<_>>(),
+                                "state_slots": compiled.state_slots,
+                                "bytecode": bytecode,
+                            }),
+                        )
+                    },
                     Err(e) => JsonRpcResponse::error(request.id, -32000, &e),
+                }
+            }
+
+            "thunder_call" => {
+                let to_hex = request
+                    .params
+                    .get("to")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let data = request
+                    .params
+                    .get("data")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+
+                match (thunder_core::crypto::address_from_hex(to_hex), hex::decode(data)) {
+                    (Ok(to_addr), Ok(_call_data)) => {
+                        let node = context.node.read().unwrap();
+                        let state = node.state.read().unwrap();
+
+                        let account = state.get_account(&to_addr);
+                        if !account.code.is_empty() {
+                            let bytecode = &account.code;
+                            match bincode::deserialize::<thunder_lang::compiler::CompiledContract>(bytecode) {
+                                Ok(compiled) => {
+                                    let ctx = thunder_vm::vm::ExecutionContext {
+                                        caller: [0u8; 20],
+                                        contract_address: to_addr,
+                                        value: 0,
+                                        timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                                        block_height: node.height(),
+                                    };
+                                        
+                                        // A real system would map call_data to arguments and set the PC to the requested function
+                                        // For now, we just run the bytecode from start
+                                        let mut vm = thunder_vm::vm::ThunderVm::new(
+                                            compiled.instructions,
+                                            ctx,
+                                            10_000_000,
+                                            1,
+                                            account.storage.clone()
+                                        );
+                                        
+                                        match vm.execute() {
+                                            Ok(res) => JsonRpcResponse::success(
+                                                request.id,
+                                                serde_json::json!({
+                                                    "return_value": res.return_value,
+                                                    "reverted": res.reverted,
+                                                    "revert_reason": res.revert_reason,
+                                                })
+                                            ),
+                                            Err(e) => JsonRpcResponse::error(request.id, -32000, &format!("VM Error: {:?}", e)),
+                                        }
+                                    },
+                                    Err(_) => JsonRpcResponse::error(request.id, -32000, "Failed to deserialize contract code"),
+                                }
+                            } else {
+                                JsonRpcResponse::error(request.id, -32000, "Address is not a contract")
+                            }
+                    },
+                    _ => JsonRpcResponse::error(request.id, -32602, "Invalid arguments"),
                 }
             }
 
@@ -516,14 +590,19 @@ mod tests {
     async fn get_ctx() -> Arc<RwLock<RpcContext>> {
         use thunder_core::crypto::KeyPair;
         use thunder_network::node::NodeConfig;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        static COUNTER: AtomicUsize = AtomicUsize::new(0);
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
 
         let config = NodeConfig {
             data_dir: format!(
-                "/tmp/thunder_test_node_{}",
+                "/tmp/thunder_test_node_rpc_{}_{}",
                 std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_nanos()
+                    .as_nanos(),
+                id
             ),
             listen_port: 3000,
             max_peers: 5,
@@ -534,7 +613,7 @@ mod tests {
             kp, config,
         )));
         Arc::new(RwLock::new(RpcContext::new(
-            "thunder-testnet-1",
+            1,
             "0x0".to_string(),
             node,
         )))
@@ -545,7 +624,7 @@ mod tests {
         let req = make_request("thunder_chainId", serde_json::json!({}));
         let res = RpcHandler::handle(&req, get_ctx().await).await;
         assert!(res.result.is_some());
-        assert_eq!(res.result.unwrap()["chain_id"], "thunder-testnet-1");
+        assert_eq!(res.result.unwrap()["chain_id"], 1);
     }
 
     #[tokio::test]
@@ -573,13 +652,14 @@ fn with_context(
 /// Start the JSON-RPC API Server asynchronously (The Infura node).
 pub async fn start_server(
     port: u16,
+    chain_id: u64,
     genesis_addr: String,
-    node: std::sync::Arc<std::sync::RwLock<thunder_network::node::Node>>,
+    shared_node: Arc<std::sync::RwLock<thunder_network::node::Node>>,
 ) {
     let context = Arc::new(RwLock::new(RpcContext::new(
-        "thunder-testnet-1",
+        chain_id,
         genesis_addr,
-        node,
+        shared_node,
     )));
 
     let cors = warp::cors()

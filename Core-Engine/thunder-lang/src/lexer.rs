@@ -22,6 +22,7 @@ pub struct Token {
 pub enum TokenKind {
     // ── Keywords ───────────────────────────────────────────────────────
     Contract,
+    Struct,
     Fn,
     Let,
     If,
@@ -295,6 +296,7 @@ impl Lexer {
 
         let kind = match ident.as_str() {
             "contract" => TokenKind::Contract,
+            "struct" => TokenKind::Struct,
             "fn" => TokenKind::Fn,
             "let" => TokenKind::Let,
             "if" => TokenKind::If,

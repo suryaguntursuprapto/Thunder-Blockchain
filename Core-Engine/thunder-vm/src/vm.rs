@@ -93,6 +93,7 @@ impl ThunderVm {
         program: Vec<Instruction>,
         ctx: ExecutionContext,
         gas_limit: u64,
+        base_fee: u64,
         storage: HashMap<Vec<u8>, Vec<u8>>,
     ) -> Self {
         let mut balances = HashMap::new();
@@ -104,7 +105,7 @@ impl ThunderVm {
             stack: Vec::with_capacity(1024),
             locals: vec![0u64; 256],
             call_stack: Vec::new(),
-            gas: GasMeter::new(gas_limit),
+            gas: GasMeter::new(gas_limit, base_fee),
             ctx,
             storage,
             logs: Vec::new(),
@@ -512,7 +513,7 @@ mod tests {
             Instruction::new(OpCode::Add),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.return_value, Some(30));
         assert!(!result.reverted);
@@ -528,7 +529,7 @@ mod tests {
             Instruction::new(OpCode::Mul),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.return_value, Some(60)); // (50-30) * 3
     }
@@ -540,7 +541,7 @@ mod tests {
             Instruction::with_operand(OpCode::Push, 0),
             Instruction::new(OpCode::Div),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute();
         assert!(result.is_err());
     }
@@ -553,7 +554,7 @@ mod tests {
             Instruction::new(OpCode::Lt),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.return_value, Some(1)); // 10 < 20 = true
     }
@@ -568,7 +569,7 @@ mod tests {
             Instruction::with_operand(OpCode::Push, 100), // 3
             Instruction::new(OpCode::Halt),               // 4
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.return_value, Some(100));
     }
@@ -583,7 +584,7 @@ mod tests {
             Instruction::with_operand(OpCode::LoadLocal, 0),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.return_value, Some(42));
     }
@@ -598,7 +599,7 @@ mod tests {
             Instruction::new(OpCode::SLoad),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.return_value, Some(999));
     }
@@ -611,7 +612,7 @@ mod tests {
             Instruction::with_operand(OpCode::Push, 42),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.return_value, Some(42));
         assert!(!result.reverted);
@@ -625,7 +626,7 @@ mod tests {
             Instruction::with_operand(OpCode::Push, 42),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert!(result.reverted);
         assert!(result.revert_reason.is_some());
@@ -639,7 +640,7 @@ mod tests {
             Instruction::new(OpCode::Add),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 3, HashMap::new()); // very low gas
+        let mut vm = ThunderVm::new(program, default_ctx(), 3, 10, HashMap::new()); // very low gas
         let result = vm.execute();
         assert!(result.is_err());
     }
@@ -650,7 +651,7 @@ mod tests {
             Instruction::new(OpCode::Timestamp),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 10, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.return_value, Some(1000));
     }
@@ -664,7 +665,7 @@ mod tests {
             Instruction::new(OpCode::Log),
             Instruction::new(OpCode::Halt),
         ];
-        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, HashMap::new());
+        let mut vm = ThunderVm::new(program, default_ctx(), 100_000, 1, HashMap::new());
         let result = vm.execute().unwrap();
         assert_eq!(result.logs.len(), 1);
         assert_eq!(result.logs[0].topics, vec![1001]);

@@ -350,7 +350,7 @@ mod tests {
             .set_account(&sender.address(), Account::with_balance(1_000_000));
 
         let mut tx =
-            Transaction::new_transfer(0, sender.address(), recipient.address(), 100, 21_000, 1);
+            Transaction::new_transfer(1, 0, sender.address(), recipient.address(), 100, 21_000, 1);
         tx.sign(&sender);
         node.add_transaction(tx).unwrap();
         assert_eq!(node.mempool.len(), 1);

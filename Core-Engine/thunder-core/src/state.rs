@@ -281,7 +281,7 @@ mod tests {
         state.set_account(&sender_kp.address(), Account::with_balance(1_000_000));
 
         // Create and sign a transfer.
-        let mut tx = Transaction::new_transfer(
+        let mut tx = Transaction::new_transfer(1, 
             0,
             sender_kp.address(),
             recipient_kp.address(),
@@ -310,7 +310,7 @@ mod tests {
 
         state.set_account(&sender_kp.address(), Account::with_balance(100));
 
-        let mut tx = Transaction::new_transfer(
+        let mut tx = Transaction::new_transfer(1, 
             0,
             sender_kp.address(),
             recipient_kp.address(),

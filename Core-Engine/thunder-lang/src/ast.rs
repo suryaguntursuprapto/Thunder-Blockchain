@@ -14,8 +14,16 @@ pub struct Program {
 #[derive(Debug, Clone)]
 pub struct Contract {
     pub name: String,
+    pub structs: Vec<StructDef>,
     pub state_vars: Vec<StateVar>,
     pub functions: Vec<Function>,
+}
+
+/// A custom struct definition.
+#[derive(Debug, Clone)]
+pub struct StructDef {
+    pub name: String,
+    pub fields: Vec<Parameter>, // We can reuse Parameter for name + ty
 }
 
 /// A contract state variable declaration.
@@ -51,6 +59,7 @@ pub enum Type {
     Address,
     String,
     Map(Box<Type>, Box<Type>),
+    Struct(String),
 }
 
 // ── Statements ─────────────────────────────────────────────────────────────
@@ -133,6 +142,16 @@ pub enum Expression {
     },
     /// Function call: `name(args...)`.
     FunctionCall { name: String, args: Vec<Expression> },
+    /// Struct instantiation: `StructName { field: expr, ... }`.
+    StructInit {
+        name: String,
+        fields: Vec<(String, Expression)>,
+    },
+    /// Struct field access: `expr.field`.
+    StructFieldAccess {
+        target: Box<Expression>,
+        field: String,
+    },
 }
 
 /// Binary operators.

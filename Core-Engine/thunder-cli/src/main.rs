@@ -218,7 +218,7 @@ fn main() {
 
                 // Mount the HTTP JSON-RPC Server
                 rt.block_on(async {
-                    thunder_rpc::start_server(8080, genesis_addr, shared_node).await;
+                    thunder_rpc::start_server(8080, 100, genesis_addr, shared_node).await;
                 });
             }
             NodeCommands::Status => {
@@ -387,7 +387,7 @@ fn main() {
                                         Err(_) => 1,
                                     };
 
-                                let mut tx = thunder_core::transaction::Transaction::new_transfer(
+                                let mut tx = thunder_core::transaction::Transaction::new_transfer(1, 
                                     unique_nonce,
                                     key_pair.address(),
                                     to_addr,
@@ -579,7 +579,7 @@ fn main() {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .subsec_nanos() as u64;
-                let mut tx = thunder_core::transaction::Transaction::new_transfer(
+                let mut tx = thunder_core::transaction::Transaction::new_transfer(1, 
                     unique_nonce,
                     key_pair.address(),
                     to_addr,
@@ -709,6 +709,7 @@ fn main() {
                                     exec_instructions,
                                     ctx,
                                     10_000_000,
+                                    10, // base fee
                                     HashMap::new(),
                                 );
 

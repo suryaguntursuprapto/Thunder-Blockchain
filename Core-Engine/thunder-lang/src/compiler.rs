@@ -10,8 +10,10 @@ use thunder_vm::opcode::{Instruction, OpCode};
 
 use crate::ast::*;
 
+use serde::{Serialize, Deserialize};
+
 /// Compiler output: a list of instructions plus metadata.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledContract {
     /// The contract name.
     pub name: String,
@@ -32,6 +34,9 @@ pub struct Compiler {
     locals: HashMap<String, usize>,
     next_local: usize,
     next_state_slot: u64,
+    struct_defs: HashMap<String, StructDef>,
+    variable_types: HashMap<String, String>,
+    next_heap_ptr: u64,
 }
 
 impl Compiler {
@@ -43,6 +48,9 @@ impl Compiler {
             locals: HashMap::new(),
             next_local: 0,
             next_state_slot: 0,
+            struct_defs: HashMap::new(),
+            variable_types: HashMap::new(),
+            next_heap_ptr: 8, // start heap at 8 to avoid null pointer
         }
     }
 
@@ -50,7 +58,12 @@ impl Compiler {
     pub fn compile(&mut self, program: &Program) -> Result<CompiledContract, CompileError> {
         let contract = &program.contract;
 
-        // 1. Register state variable storage slots.
+        // 1. Register structs.
+        for sd in &contract.structs {
+            self.struct_defs.insert(sd.name.clone(), sd.clone());
+        }
+
+        // 2. Register state variable storage slots.
         for sv in &contract.state_vars {
             self.state_slots
                 .insert(sv.name.clone(), self.next_state_slot);
@@ -117,6 +130,9 @@ impl Compiler {
     fn compile_statement(&mut self, stmt: &Statement) -> Result<(), CompileError> {
         match stmt {
             Statement::Let { name, value } => {
+                if let Expression::StructInit { name: struct_name, .. } = value {
+                    self.variable_types.insert(name.clone(), struct_name.clone());
+                }
                 self.compile_expression(value)?;
                 let slot = self.alloc_local(name);
                 self.emit(Instruction::with_operand(OpCode::StoreLocal, slot as u64));
@@ -372,6 +388,42 @@ impl Compiler {
                         // Mark this instruction for later resolution.
                     }
                 }
+            }
+            Expression::StructInit { name: _, fields } => {
+                let base_ptr = self.next_heap_ptr;
+                self.next_heap_ptr += (fields.len() as u64) * 8;
+                for (i, (_, expr)) in fields.iter().enumerate() {
+                    self.compile_expression(expr)?;
+                    self.emit(Instruction::with_operand(
+                        OpCode::Push,
+                        base_ptr + (i as u64) * 8,
+                    ));
+                    self.emit(Instruction::new(OpCode::MStore));
+                }
+                self.emit(Instruction::with_operand(OpCode::Push, base_ptr));
+            }
+            Expression::StructFieldAccess { target, field } => {
+                self.compile_expression(target)?;
+                
+                // Hack: If target is a variable, find its struct type and the field offset.
+                let offset = if let Expression::Variable(var_name) = &**target {
+                    if let Some(struct_name) = self.variable_types.get(var_name) {
+                        if let Some(struct_def) = self.struct_defs.get(struct_name) {
+                            if let Some(idx) = struct_def.fields.iter().position(|p| &p.name == field) {
+                                (idx as u64) * 8
+                            } else {
+                                0
+                            }
+                        } else { 0 }
+                    } else { 0 }
+                } else { 0 };
+
+                if offset > 0 {
+                    self.emit(Instruction::with_operand(OpCode::Push, offset));
+                    self.emit(Instruction::new(OpCode::Add));
+                }
+                
+                self.emit(Instruction::new(OpCode::MLoad));
             }
         }
         Ok(())
