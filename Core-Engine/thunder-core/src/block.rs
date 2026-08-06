@@ -88,6 +88,8 @@ impl Block {
     }
 
     /// Create a new block on top of the given previous block.
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         prev_block: &Block,
         transactions: Vec<Transaction>,

@@ -208,7 +208,7 @@ fn main() {
                                     "\n  🔨 FORGED BLOCK #{} | {} txns | Hash: 0x{}",
                                     block.header.height,
                                     block.transactions.len(),
-                                    hex::encode(&block.hash())[0..10].to_string()
+                                    hex::encode(block.hash())[0..10].to_string()
                                 );
                             }
                         }
@@ -439,9 +439,7 @@ fn main() {
                 println!("⚡ Fetching Balance for {}", address);
 
                 let rpc_url = "http://127.0.0.1:8080";
-                let client = match reqwest::blocking::Client::new() {
-                    client => client,
-                };
+                let client = reqwest::blocking::Client::new();
 
                 let payload = serde_json::json!({
                     "jsonrpc": "2.0",
