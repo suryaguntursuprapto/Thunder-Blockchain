@@ -58,8 +58,6 @@ impl JsonRpcResponse {
     }
 }
 
-
-
 // ── RPC Context (Infura Foundation) ────────────────────────────────────────
 
 /// Shared state context injected into the RPC Server.
@@ -70,7 +68,11 @@ pub struct RpcContext {
 }
 
 impl RpcContext {
-    pub fn new(chain_id: &str, genesis_addr: String, node: std::sync::Arc<std::sync::RwLock<thunder_network::node::Node>>) -> Self {
+    pub fn new(
+        chain_id: &str,
+        genesis_addr: String,
+        node: std::sync::Arc<std::sync::RwLock<thunder_network::node::Node>>,
+    ) -> Self {
         Self {
             chain_id: chain_id.to_string(),
             genesis_addr,
@@ -86,16 +88,14 @@ pub struct RpcHandler;
 
 impl RpcHandler {
     /// Route a JSON-RPC request to the appropriate handler asynchronously.
-    pub async fn handle(
-        request: &JsonRpcRequest,
-        ctx: Arc<RwLock<RpcContext>>,
-    ) -> JsonRpcResponse {
+    pub async fn handle(request: &JsonRpcRequest, ctx: Arc<RwLock<RpcContext>>) -> JsonRpcResponse {
         let context = ctx.read().await;
 
         match request.method.as_str() {
-            "thunder_chainId" => {
-                JsonRpcResponse::success(request.id, serde_json::json!({ "chain_id": context.chain_id }))
-            }
+            "thunder_chainId" => JsonRpcResponse::success(
+                request.id,
+                serde_json::json!({ "chain_id": context.chain_id }),
+            ),
 
             "thunder_blockNumber" => {
                 let height = context.node.read().unwrap().height();
@@ -108,12 +108,19 @@ impl RpcHandler {
                     .get("address")
                     .and_then(|v| v.as_str())
                     .unwrap_or("0x0");
-                
+
                 let mut balance = 0;
                 if let Ok(addr) = thunder_core::crypto::address_from_hex(address_str) {
-                    balance = context.node.read().unwrap().state.read().unwrap().get_balance(&addr);
+                    balance = context
+                        .node
+                        .read()
+                        .unwrap()
+                        .state
+                        .read()
+                        .unwrap()
+                        .get_balance(&addr);
                 }
-                
+
                 JsonRpcResponse::success(
                     request.id,
                     serde_json::json!({ "address": address_str, "balance": balance.to_string() }),
@@ -125,7 +132,10 @@ impl RpcHandler {
                 // Dynamic EIP-1559 logic: Base 1 Gwei + 5 Gwei penalty per pending mempool transaction (Congestion/Difficulty)
                 let congestion_penalty = (node.mempool.len() as u64) * 5;
                 let dynamic_gwei = 1 + congestion_penalty;
-                JsonRpcResponse::success(request.id, serde_json::json!({ "gas_price": dynamic_gwei }))
+                JsonRpcResponse::success(
+                    request.id,
+                    serde_json::json!({ "gas_price": dynamic_gwei }),
+                )
             }
 
             "thunder_sendTransaction" => {
@@ -134,11 +144,13 @@ impl RpcHandler {
                     .get("data")
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
-                
-                let parse_res = hex::decode(data).map_err(|_| "Invalid Hex").and_then(|bytes| {
-                    bincode::deserialize::<thunder_core::transaction::Transaction>(&bytes)
-                        .map_err(|_| "Deserialization failed")
-                });
+
+                let parse_res = hex::decode(data)
+                    .map_err(|_| "Invalid Hex")
+                    .and_then(|bytes| {
+                        bincode::deserialize::<thunder_core::transaction::Transaction>(&bytes)
+                            .map_err(|_| "Deserialization failed")
+                    });
 
                 match parse_res {
                     Ok(tx) => {
@@ -156,20 +168,35 @@ impl RpcHandler {
             }
 
             "thunder_requestFaucet" => {
-                let recipient_hex = request.params.get("address").and_then(|v| v.as_str()).unwrap_or("");
-                let requested_amount = request.params.get("amount").and_then(|v| v.as_u64()).unwrap_or(100000);
-                let dynamic_gas = request.params.get("gas_price").and_then(|v| v.as_u64()).unwrap_or(1);
+                let recipient_hex = request
+                    .params
+                    .get("address")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let requested_amount = request
+                    .params
+                    .get("amount")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(100000);
+                let dynamic_gas = request
+                    .params
+                    .get("gas_price")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(1);
                 match thunder_core::crypto::address_from_hex(recipient_hex) {
                     Ok(to_addr) => {
                         let mut n = context.node.write().unwrap();
-                        let unique_nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos() as u64;
+                        let unique_nonce = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap()
+                            .subsec_nanos() as u64;
                         let mut tx = thunder_core::transaction::Transaction::new_transfer(
                             unique_nonce,
                             n.key_pair.address(),
                             to_addr,
                             requested_amount,
                             21000,
-                            dynamic_gas
+                            dynamic_gas,
                         );
                         // Node securely signs testnet funds with the master Genesis KeyPair
                         tx.sign(&n.key_pair);
@@ -186,27 +213,26 @@ impl RpcHandler {
                 }
             }
 
-
             "thunder_getMempool" => {
                 let node = context.node.read().unwrap();
                 let mempool = &node.mempool;
-                
-                let mapped_pool: Vec<serde_json::Value> = mempool.iter().map(|tx| {
-                    serde_json::json!({
-                        "hash": format!("0x{}", thunder_core::crypto::hash_to_hex(&tx.hash())),
-                        "from": thunder_core::crypto::address_to_hex(&tx.from),
-                        "to": thunder_core::crypto::address_to_hex(&tx.to),
-                        "value": tx.value,
-                        "gas_limit": tx.gas_limit,
-                        "gas_price": tx.gas_price,
-                        "kind": format!("{:?}", tx.kind)
-                    })
-                }).collect();
 
-                JsonRpcResponse::success(
-                    request.id,
-                    serde_json::json!({ "mempool": mapped_pool }),
-                )
+                let mapped_pool: Vec<serde_json::Value> = mempool
+                    .iter()
+                    .map(|tx| {
+                        serde_json::json!({
+                            "hash": format!("0x{}", thunder_core::crypto::hash_to_hex(&tx.hash())),
+                            "from": thunder_core::crypto::address_to_hex(&tx.from),
+                            "to": thunder_core::crypto::address_to_hex(&tx.to),
+                            "value": tx.value,
+                            "gas_limit": tx.gas_limit,
+                            "gas_price": tx.gas_price,
+                            "kind": format!("{:?}", tx.kind)
+                        })
+                    })
+                    .collect();
+
+                JsonRpcResponse::success(request.id, serde_json::json!({ "mempool": mapped_pool }))
             }
 
             "thunder_getBlock" => {
@@ -220,7 +246,7 @@ impl RpcHandler {
                 if let Some(block) = node.get_block(height) {
                     let mut gas_used = 0u64;
                     let mut fees_nanothdr = 0u64;
-                    
+
                     let mapped_txs: Vec<serde_json::Value> = block.transactions.iter().map(|tx| {
                         gas_used += tx.gas_limit;
                         fees_nanothdr += tx.gas_limit * tx.gas_price;
@@ -268,13 +294,14 @@ impl RpcHandler {
                     .get("hash")
                     .and_then(|v| v.as_str())
                     .unwrap_or("");
-                
+
                 let node = context.node.read().unwrap();
                 let mut found_tx = None;
-                
+
                 // Check Mempool First
                 for tx in &node.mempool {
-                    if format!("0x{}", thunder_core::crypto::hash_to_hex(&tx.hash())) == tx_hash_str {
+                    if format!("0x{}", thunder_core::crypto::hash_to_hex(&tx.hash())) == tx_hash_str
+                    {
                         found_tx = Some((tx.clone(), None));
                         break;
                     }
@@ -283,8 +310,14 @@ impl RpcHandler {
                 // Check Historical Blocks
                 if found_tx.is_none() {
                     for block in node.chain.iter().rev() {
-                        if let Some(tx) = block.transactions.iter().find(|t| format!("0x{}", thunder_core::crypto::hash_to_hex(&t.hash())) == tx_hash_str) {
-                            found_tx = Some((tx.clone(), Some((block.header.height, block.header.timestamp))));
+                        if let Some(tx) = block.transactions.iter().find(|t| {
+                            format!("0x{}", thunder_core::crypto::hash_to_hex(&t.hash()))
+                                == tx_hash_str
+                        }) {
+                            found_tx = Some((
+                                tx.clone(),
+                                Some((block.header.height, block.header.timestamp)),
+                            ));
                             break;
                         }
                     }
@@ -303,11 +336,23 @@ impl RpcHandler {
                     });
 
                     if let Some((h, ts)) = height_opt {
-                        payload.as_object_mut().unwrap().insert("block_height".to_string(), serde_json::json!(h));
-                        payload.as_object_mut().unwrap().insert("timestamp".to_string(), serde_json::json!(ts));
+                        payload
+                            .as_object_mut()
+                            .unwrap()
+                            .insert("block_height".to_string(), serde_json::json!(h));
+                        payload
+                            .as_object_mut()
+                            .unwrap()
+                            .insert("timestamp".to_string(), serde_json::json!(ts));
                     } else {
-                        payload.as_object_mut().unwrap().insert("block_height".to_string(), serde_json::json!(null));
-                        payload.as_object_mut().unwrap().insert("timestamp".to_string(), serde_json::json!(null));
+                        payload
+                            .as_object_mut()
+                            .unwrap()
+                            .insert("block_height".to_string(), serde_json::json!(null));
+                        payload
+                            .as_object_mut()
+                            .unwrap()
+                            .insert("timestamp".to_string(), serde_json::json!(null));
                     }
 
                     JsonRpcResponse::success(request.id, payload)
@@ -328,7 +373,9 @@ impl RpcHandler {
                 let mut txs = Vec::new();
 
                 for (i, block) in node.chain.iter().rev().enumerate() {
-                    if i > 100 { break; } // Limit deep historical scans temporarily
+                    if i > 100 {
+                        break;
+                    } // Limit deep historical scans temporarily
                     for tx in block.transactions.iter().rev() {
                         let from_hex = thunder_core::crypto::address_to_hex(&tx.from);
                         let to_hex = thunder_core::crypto::address_to_hex(&tx.to);
@@ -364,10 +411,13 @@ impl RpcHandler {
                         "is_active": true
                     }));
                 }
-                
-                JsonRpcResponse::success(request.id, serde_json::json!({ 
-                    "validators": vals
-                }))
+
+                JsonRpcResponse::success(
+                    request.id,
+                    serde_json::json!({
+                        "validators": vals
+                    }),
+                )
             }
 
             "thunder_compileContract" => {
@@ -419,7 +469,7 @@ mod tests {
     async fn get_ctx() -> Arc<RwLock<RpcContext>> {
         use thunder_core::crypto::KeyPair;
         use thunder_network::node::NodeConfig;
-        
+
         let config = NodeConfig {
             data_dir: "/tmp/thunder_test_node".to_string(),
             listen_port: 3000,
@@ -427,8 +477,14 @@ mod tests {
             min_stake: 1000,
         };
         let kp = KeyPair::generate();
-        let node = std::sync::Arc::new(std::sync::RwLock::new(thunder_network::node::Node::new(kp, config)));
-        Arc::new(RwLock::new(RpcContext::new("thunder-testnet-1", "0x0".to_string(), node)))
+        let node = std::sync::Arc::new(std::sync::RwLock::new(thunder_network::node::Node::new(
+            kp, config,
+        )));
+        Arc::new(RwLock::new(RpcContext::new(
+            "thunder-testnet-1",
+            "0x0".to_string(),
+            node,
+        )))
     }
 
     #[tokio::test]
@@ -462,8 +518,16 @@ fn with_context(
 
 /// Start the JSON-RPC API Server asynchronously (The Infura node).
 /// Start the JSON-RPC API Server asynchronously (The Infura node).
-pub async fn start_server(port: u16, genesis_addr: String, node: std::sync::Arc<std::sync::RwLock<thunder_network::node::Node>>) {
-    let context = Arc::new(RwLock::new(RpcContext::new("thunder-testnet-1", genesis_addr, node)));
+pub async fn start_server(
+    port: u16,
+    genesis_addr: String,
+    node: std::sync::Arc<std::sync::RwLock<thunder_network::node::Node>>,
+) {
+    let context = Arc::new(RwLock::new(RpcContext::new(
+        "thunder-testnet-1",
+        genesis_addr,
+        node,
+    )));
 
     let cors = warp::cors()
         .allow_any_origin()
@@ -473,13 +537,18 @@ pub async fn start_server(port: u16, genesis_addr: String, node: std::sync::Arc<
     let route = warp::post()
         .and(warp::body::json())
         .and(with_context(context))
-        .then(|req: JsonRpcRequest, ctx: Arc<RwLock<RpcContext>>| async move {
-            let res = RpcHandler::handle(&req, ctx).await;
-            warp::reply::json(&res)
-        })
+        .then(
+            |req: JsonRpcRequest, ctx: Arc<RwLock<RpcContext>>| async move {
+                let res = RpcHandler::handle(&req, ctx).await;
+                warp::reply::json(&res)
+            },
+        )
         .with(cors);
 
     let addr: SocketAddr = ([127, 0, 0, 1], port).into();
-    tracing::info!("Starting Thunder JSON-RPC Testnet Node on http://{} ⚡", addr);
+    tracing::info!(
+        "Starting Thunder JSON-RPC Testnet Node on http://{} ⚡",
+        addr
+    );
     warp::serve(route).run(addr).await;
 }

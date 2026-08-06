@@ -303,7 +303,7 @@ impl Node {
 
 #[cfg(test)]
 mod tests {
-    use super::*; use thunder_core::state::Account;;
+    use super::*; use thunder_core::state::Account;
 
     fn temp_node() -> Node {
         let kp = KeyPair::generate();
