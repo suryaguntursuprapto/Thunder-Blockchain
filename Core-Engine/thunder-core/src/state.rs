@@ -326,6 +326,4 @@ mod tests {
             Err(StateError::InsufficientBalance { .. })
         ));
     }
-
-    
 }
