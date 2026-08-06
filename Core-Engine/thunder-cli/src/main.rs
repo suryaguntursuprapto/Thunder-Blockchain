@@ -201,14 +201,14 @@ fn main() {
                         }
 
                         // Bundle pending txns into DAG Event
-                        if let Ok(_) = n.create_event() {
+                        if n.create_event().is_ok() {
                             // Automatically process round & forge
                             if let Some(block) = n.try_produce_block() {
                                 println!(
                                     "\n  🔨 FORGED BLOCK #{} | {} txns | Hash: 0x{}",
                                     block.header.height,
                                     block.transactions.len(),
-                                    hex::encode(block.hash())[0..10].to_string()
+                                    &hex::encode(block.hash())[0..10]
                                 );
                             }
                         }
