@@ -287,7 +287,7 @@ function ThunderScanTestnet() {
                     <div style={{ width: '200px', color: 'var(--text-secondary)' }}>Balance:</div>
                     <div style={{ fontFamily: 'monospace', color: 'var(--text)', display: 'flex', alignItems: 'center' }}>
                       <img src="/logo.png" style={{ width: 16, height: 16, marginRight: 6 }} alt="THDR" />
-                      {viewAccountDetails.balance?.toLocaleString() || 0} THDR
+                      {((viewAccountDetails.balance || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR
                     </div>
                   </div>
                 </div>
