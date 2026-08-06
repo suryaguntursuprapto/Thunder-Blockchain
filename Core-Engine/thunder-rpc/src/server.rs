@@ -471,14 +471,16 @@ mod tests {
         use thunder_network::node::NodeConfig;
 
         let config = NodeConfig {
-            data_dir: &format!(
-                "/tmp/thunder_test_node_{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            )
-            .to_string(),
+            data_dir: Box::leak(
+                format!(
+                    "/tmp/thunder_test_node_{}",
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos()
+                )
+                .into_boxed_str(),
+            ),
             listen_port: 3000,
             max_peers: 5,
             min_stake: 1000,
