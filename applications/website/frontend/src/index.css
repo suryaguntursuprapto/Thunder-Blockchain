@@ -869,3 +869,546 @@ img {
   color: var(--white) !important;
   transform: translateX(4px);
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   ThunderScan — Block Explorer Styles
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ── Network Toggle ─────────────────────────────────────────────── */
+.scan-network-toggle {
+  display: inline-flex;
+  background: var(--bg-secondary);
+  border-radius: 100px;
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+  margin-bottom: 32px;
+}
+
+.scan-network-btn {
+  padding: 10px 28px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: var(--transition);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scan-network-btn.active {
+  background: var(--gradient-main);
+  color: #000;
+  border-radius: 100px;
+}
+
+.scan-network-btn:not(.active):hover {
+  color: var(--white);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Scan Layout ────────────────────────────────────────────────── */
+.scan-page {
+  padding-top: 100px;
+  min-height: 100vh;
+}
+
+.scan-hero {
+  text-align: center;
+  padding: 48px 0 32px;
+}
+
+.scan-hero-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.scan-hero-brand img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  box-shadow: var(--glow-cyan);
+}
+
+.scan-hero-brand h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.scan-hero .text-body {
+  max-width: 500px;
+  margin: 8px auto 24px;
+  font-size: 1rem;
+}
+
+/* ── Scan Search ────────────────────────────────────────────────── */
+.scan-search-wrap {
+  max-width: 720px;
+  margin: 0 auto 48px;
+  position: relative;
+}
+
+.scan-search-input {
+  width: 100%;
+  padding: 16px 56px 16px 24px;
+  font-size: 1rem;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border);
+  border-radius: 100px;
+  outline: none;
+  transition: var(--transition);
+}
+
+.scan-search-input:focus {
+  border-color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.scan-search-input::placeholder {
+  color: var(--gray);
+}
+
+.scan-search-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: none;
+  background: var(--gradient-main);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.scan-search-btn:hover {
+  transform: translateY(-50%) scale(1.08);
+  box-shadow: var(--glow-cyan);
+}
+
+/* ── Scan Stats Grid ────────────────────────────────────────────── */
+.scan-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 48px;
+}
+
+.scan-stat-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  backdrop-filter: blur(12px);
+  transition: var(--transition);
+}
+
+.scan-stat-card:hover {
+  border-color: rgba(0, 240, 255, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.scan-stat-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gray);
+  margin-bottom: 8px;
+}
+
+.scan-stat-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--white);
+}
+
+.scan-stat-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 6px;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--green);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+/* ── Scan Data Grid (Blocks + Txns Side by Side) ────────────────── */
+.scan-data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.scan-panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+.scan-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.scan-panel-header h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scan-row {
+  display: flex;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.025);
+  gap: 14px;
+  transition: background var(--transition);
+}
+
+.scan-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.scan-row:last-child {
+  border-bottom: none;
+}
+
+.scan-row-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', 'Outfit', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--cyan);
+  background: rgba(0, 240, 255, 0.06);
+  border: 1px solid rgba(0, 240, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.scan-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.scan-row-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scan-row-title a {
+  color: var(--cyan);
+  transition: var(--transition);
+}
+
+.scan-row-title a:hover {
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+}
+
+.scan-row-sub {
+  font-size: 0.8rem;
+  color: var(--gray);
+}
+
+.scan-row-sub a {
+  color: var(--text-secondary);
+  transition: var(--transition);
+}
+
+.scan-row-sub a:hover {
+  color: var(--cyan);
+}
+
+.scan-row-meta {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.scan-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(0, 240, 255, 0.08);
+  color: var(--cyan);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+}
+
+.scan-badge.green {
+  background: rgba(16, 185, 129, 0.08);
+  color: var(--green);
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
+.scan-badge.purple {
+  background: rgba(139, 92, 246, 0.08);
+  color: var(--purple);
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+.scan-view-all {
+  display: block;
+  text-align: center;
+  padding: 14px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  background: rgba(0, 0, 0, 0.2);
+  transition: var(--transition);
+  text-decoration: none;
+}
+
+.scan-view-all:hover {
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--cyan);
+}
+
+/* ── Scan Validators Section ────────────────────────────────────── */
+.scan-validators-section {
+  margin-bottom: 48px;
+}
+
+.scan-validators-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.scan-validator-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 20px;
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: var(--transition);
+}
+
+.scan-validator-card:hover {
+  border-color: rgba(0, 240, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.scan-validator-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--gradient-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.scan-validator-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.scan-validator-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+
+.scan-validator-addr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--gray);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scan-validator-stake {
+  text-align: right;
+}
+
+.scan-validator-stake-value {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--white);
+}
+
+.scan-validator-stake-label {
+  font-size: 0.7rem;
+  color: var(--gray);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.scan-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.scan-status-dot.active {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+.scan-status-dot.inactive {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+/* ── Mainnet Coming Soon ────────────────────────────────────────── */
+.scan-coming-soon {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.scan-coming-soon-card {
+  max-width: 600px;
+  padding: 64px;
+}
+
+.scan-coming-soon-icon {
+  font-size: 4.5rem;
+  margin-bottom: 24px;
+  display: block;
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.scan-coming-soon-card h2 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.scan-coming-soon-card p {
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+
+/* ── API Documentation Section ──────────────────────────────────── */
+.scan-api-section {
+  margin-bottom: 48px;
+}
+
+.scan-api-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.scan-api-card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  padding: 24px;
+  backdrop-filter: blur(8px);
+  transition: var(--transition);
+}
+
+.scan-api-card:hover {
+  border-color: rgba(0, 240, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.scan-api-method {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--purple);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  margin-bottom: 12px;
+}
+
+.scan-api-title {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+
+.scan-api-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── ThunderScan Responsive ─────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .scan-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .scan-data-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .scan-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-hero-brand h1 {
+    font-size: 1.8rem;
+  }
+
+  .scan-coming-soon-card {
+    padding: 40px 24px;
+  }
+
+  .scan-coming-soon-card h2 {
+    font-size: 2rem;
+  }
+}
