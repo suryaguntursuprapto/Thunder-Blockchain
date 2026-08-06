@@ -18,18 +18,24 @@ pub struct Validator {
     pub address: Address,
     /// Ed25519 public key.
     pub public_key: PublicKey,
-    /// Amount of coins staked.
+    /// Amount of coins staked directly by the Operator.
     pub stake: u64,
+    /// Percentage commission cut taken from Total Yields (e.g. 5 = 5%).
+    pub commission_rate: u8,
+    /// Address mappings of Retail Delegators to their absolute staked THDR pools.
+    pub delegators: std::collections::HashMap<Address, u64>,
     /// Whether this validator is currently active.
     pub is_active: bool,
 }
 
 impl Validator {
-    pub fn new(address: Address, public_key: PublicKey, stake: u64) -> Self {
+    pub fn new(address: Address, public_key: PublicKey, stake: u64, commission_rate: u8) -> Self {
         Self {
             address,
             public_key,
             stake,
+            commission_rate,
+            delegators: std::collections::HashMap::new(),
             is_active: true,
         }
     }

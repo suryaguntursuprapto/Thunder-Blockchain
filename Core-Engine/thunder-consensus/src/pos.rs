@@ -57,7 +57,7 @@ impl ValidatorSet {
 
         self.total_stake += stake;
         self.validators
-            .insert(address, Validator::new(address, public_key, stake));
+            .insert(address, Validator::new(address, public_key, stake, 5));
         Ok(())
     }
 
