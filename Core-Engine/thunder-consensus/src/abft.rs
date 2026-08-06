@@ -272,10 +272,7 @@ impl AbftConsensus {
             }
         }
 
-        if tx_hashes.is_empty() {
-            return None;
-        }
-
+        // No empty tx_hashes check here. Allow heartbeat empty blocks to be yielded!
         self.last_decided_round = max_round;
 
         Some(ConsensusOutput {
