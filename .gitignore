@@ -16,3 +16,5 @@ Thumbs.db
 # Data
 /data/
 *.db
+Core-Engine/data/
+*_data/

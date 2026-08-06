@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:
-  # First Bootnode
+  # Bootnode (Genesis Node)
   bootnode:
     build: .
     image: thunder-node:latest
     container_name: thunder_bootnode
     ports:
       - "9000:9000"  # P2P
-      - "8080:8080"  # RPC
+      - "8080:8080"  # RPC API
     volumes:
       - bootnode_data:/app/node_data
     command: ["--port", "9000"]
@@ -18,12 +18,12 @@ services:
   validator2:
     build: .
     image: thunder-node:latest
-    container_name: thunder_validator_2
+    container_name: thunder_validator2
     ports:
       - "9001:9000"
       - "8081:8080"
     volumes:
-      - val2_data:/app/node_data
+      - validator2_data:/app/node_data
     depends_on:
       - bootnode
     command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
@@ -33,12 +33,267 @@ services:
   validator3:
     build: .
     image: thunder-node:latest
-    container_name: thunder_validator_3
+    container_name: thunder_validator3
     ports:
       - "9002:9000"
       - "8082:8080"
     volumes:
-      - val3_data:/app/node_data
+      - validator3_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 4
+  validator4:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator4
+    ports:
+      - "9003:9000"
+      - "8083:8080"
+    volumes:
+      - validator4_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 5
+  validator5:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator5
+    ports:
+      - "9004:9000"
+      - "8084:8080"
+    volumes:
+      - validator5_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 6
+  validator6:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator6
+    ports:
+      - "9005:9000"
+      - "8085:8080"
+    volumes:
+      - validator6_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 7
+  validator7:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator7
+    ports:
+      - "9006:9000"
+      - "8086:8080"
+    volumes:
+      - validator7_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 8
+  validator8:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator8
+    ports:
+      - "9007:9000"
+      - "8087:8080"
+    volumes:
+      - validator8_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 9
+  validator9:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator9
+    ports:
+      - "9008:9000"
+      - "8088:8080"
+    volumes:
+      - validator9_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 10
+  validator10:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator10
+    ports:
+      - "9009:9000"
+      - "8089:8080"
+    volumes:
+      - validator10_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 11
+  validator11:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator11
+    ports:
+      - "9010:9000"
+      - "8090:8080"
+    volumes:
+      - validator11_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 12
+  validator12:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator12
+    ports:
+      - "9011:9000"
+      - "8091:8080"
+    volumes:
+      - validator12_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 13
+  validator13:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator13
+    ports:
+      - "9012:9000"
+      - "8092:8080"
+    volumes:
+      - validator13_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 14
+  validator14:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator14
+    ports:
+      - "9013:9000"
+      - "8093:8080"
+    volumes:
+      - validator14_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 15
+  validator15:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator15
+    ports:
+      - "9014:9000"
+      - "8094:8080"
+    volumes:
+      - validator15_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 16
+  validator16:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator16
+    ports:
+      - "9015:9000"
+      - "8095:8080"
+    volumes:
+      - validator16_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 17
+  validator17:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator17
+    ports:
+      - "9016:9000"
+      - "8096:8080"
+    volumes:
+      - validator17_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 18
+  validator18:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator18
+    ports:
+      - "9017:9000"
+      - "8097:8080"
+    volumes:
+      - validator18_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 19
+  validator19:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator19
+    ports:
+      - "9018:9000"
+      - "8098:8080"
+    volumes:
+      - validator19_data:/app/node_data
+    depends_on:
+      - bootnode
+    command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
+    restart: always
+
+  # Validator 20
+  validator20:
+    build: .
+    image: thunder-node:latest
+    container_name: thunder_validator20
+    ports:
+      - "9019:9000"
+      - "8099:8080"
+    volumes:
+      - validator20_data:/app/node_data
     depends_on:
       - bootnode
     command: ["--port", "9000", "--bootnode", "http://bootnode:9000"]
@@ -46,5 +301,22 @@ services:
 
 volumes:
   bootnode_data:
-  val2_data:
-  val3_data:
+  validator2_data:
+  validator3_data:
+  validator4_data:
+  validator5_data:
+  validator6_data:
+  validator7_data:
+  validator8_data:
+  validator9_data:
+  validator10_data:
+  validator11_data:
+  validator12_data:
+  validator13_data:
+  validator14_data:
+  validator15_data:
+  validator16_data:
+  validator17_data:
+  validator18_data:
+  validator19_data:
+  validator20_data:

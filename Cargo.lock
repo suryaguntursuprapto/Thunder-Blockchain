@@ -5308,8 +5308,10 @@ dependencies = [
 name = "thunder-cli"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "clap",
  "hex",
+ "reqwest",
  "serde",
  "serde_json",
  "thunder-consensus",
@@ -5404,11 +5406,14 @@ dependencies = [
 name = "thunder-rpc"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "hex",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
  "thunder-core",
  "thunder-lang",
+ "thunder-network",
  "thunder-vm",
  "tokio",
  "tracing",
