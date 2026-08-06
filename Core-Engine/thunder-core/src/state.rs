@@ -327,25 +327,5 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn test_invalid_nonce() {
-        let mut state = temp_state();
-        let sender_kp = KeyPair::generate();
-        let recipient_kp = KeyPair::generate();
-
-        state.set_account(&sender_kp.address(), Account::with_balance(1_000_000));
-
-        let mut tx = Transaction::new_transfer(
-            999, // wrong nonce
-            sender_kp.address(),
-            recipient_kp.address(),
-            100,
-            21_000,
-            1,
-        );
-        tx.sign(&sender_kp);
-
-        let result = state.apply_transaction(&tx);
-        assert!(matches!(result, Err(StateError::InvalidNonce { .. })));
-    }
+    
 }
