@@ -167,6 +167,31 @@ impl RpcHandler {
                 }
             }
 
+            
+            "thunder_registerValidator" => {
+                let address_hex = request.params.get("address").and_then(|v| v.as_str()).unwrap_or("");
+                let pubkey_hex = request.params.get("public_key").and_then(|v| v.as_str()).unwrap_or("");
+                let stake = request.params.get("stake").and_then(|v| v.as_u64()).unwrap_or(0);
+                
+                match (thunder_core::crypto::address_from_hex(address_hex), hex::decode(pubkey_hex)) {
+                    (Ok(addr), Ok(pk_bytes)) if pk_bytes.len() == 32 => {
+                        let mut pk = [0u8; 32];
+                        pk.copy_from_slice(&pk_bytes);
+                        
+                        let mut n = context.node.write().unwrap();
+                        
+                        if let Err(e) = n.validator_set.register(addr, pk, stake) {
+                            return JsonRpcResponse::error(request.id, -32000, &e.to_string());
+                        }
+                        
+                        n.consensus.validators = n.validator_set.active_validators().iter().map(|v| v.address).collect();
+                        
+                        JsonRpcResponse::success(request.id, serde_json::json!("Validator Registered Successfully"))
+                    },
+                    _ => JsonRpcResponse::error(request.id, -32602, "Invalid address or pubkey")
+                }
+            },
+
             "thunder_requestFaucet" => {
                 let recipient_hex = request
                     .params
@@ -551,7 +576,7 @@ pub async fn start_server(
         )
         .with(cors);
 
-    let addr: SocketAddr = ([127, 0, 0, 1], port).into();
+    let addr: SocketAddr = ([0, 0, 0, 0], port).into();
     tracing::info!(
         "Starting Thunder JSON-RPC Testnet Node on http://{} ⚡",
         addr
