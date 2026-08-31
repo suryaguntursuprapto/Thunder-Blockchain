@@ -3,41 +3,111 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import '../App.css'
 
-
-
 /* ══════════════════════════════════════════════════════════════════
-   ThunderScan — Block Explorer Pages
+   ThunderScan — Block Explorer v2.0 (Clean & Futuristic)
    ══════════════════════════════════════════════════════════════════ */
 
-// Helper: Network Toggle component used on both Mainnet & Testnet
+// Helper: Network Toggle
 function ScanNetworkToggle() {
   const location = useLocation()
   const isTestnet = location.pathname.includes('testnet')
   return (
     <div className="scan-network-toggle">
       <Link to="/thunderscan/mainnet" className={`scan-network-btn ${!isTestnet ? 'active' : ''}`}>
-        🌐 Mainnet
+        Mainnet
       </Link>
       <Link to="/thunderscan/testnet" className={`scan-network-btn ${isTestnet ? 'active' : ''}`}>
-        🧪 Testnet
+        Testnet
       </Link>
     </div>
   )
 }
 
-// Helper: format hex address for display
+// Helper: format hex address
 function fmtAddr(addr: string) {
   if (!addr) return '0x0000...0000';
   if (addr.length < 10) return addr;
   return addr.slice(0, 6) + '...' + addr.slice(-4)
 }
 
-// Helper: format hex hash for display
+// Helper: format hex hash
 function fmtHash(hash: string) {
   if (!hash) return '0x00000000...0000';
   if (hash.length < 14) return hash;
   return hash.slice(0, 10) + '...' + hash.slice(-4)
 }
+
+// Reusable: Copy button
+function CopyBtn({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: copied ? 'var(--green)' : 'var(--text-tertiary)', padding: '4px', transition: 'color 0.2s' }}
+      title="Copy"
+    >
+      {copied ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      ) : (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      )}
+    </button>
+  )
+}
+
+// Reusable: Detail Row
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="scan-detail-row">
+      <div className="scan-detail-label">{label}</div>
+      <div className="scan-detail-value">{children}</div>
+    </div>
+  )
+}
+
+// Reusable: Transaction Row
+function TxRow({ tx, onTxClick, onAddrClick, timestamp }: { tx: any; onTxClick: (hash: string) => void; onAddrClick: (addr: string) => void; timestamp?: number }) {
+  const ts = timestamp || tx.timestamp;
+  return (
+    <div className="scan-row">
+      <div className="scan-row-icon tx-icon">Tx</div>
+      <div className="scan-row-main" style={{ flex: 1.5 }}>
+        <div className="scan-row-title">
+          <a href="#" onClick={(e) => { e.preventDefault(); onTxClick(tx.hash); }}>{fmtHash(tx.hash)}</a>
+        </div>
+        <div className="scan-row-sub">{ts ? timeAgoFn(ts) : 'Pending'}</div>
+      </div>
+      <div className="scan-row-main" style={{ flex: 2 }}>
+        <div className="scan-row-sub">From <a href="#" onClick={(e) => { e.preventDefault(); onAddrClick(tx.from); }}>{fmtAddr(tx.from)}</a></div>
+        <div className="scan-row-sub">To <a href="#" onClick={(e) => { e.preventDefault(); onAddrClick(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Contract'}</a></div>
+      </div>
+      <div className="scan-row-meta">
+        <span className={`scan-badge ${tx.kind === 'Deploy' ? 'purple' : tx.kind === 'Stake' ? 'green' : ''}`} style={{ display: 'flex', alignItems: 'center' }}>
+          {tx.kind === 'Transfer' ? (
+            <>
+              <img src="/logo.png" style={{ width: 13, height: 13, marginRight: 4 }} alt="THDR" />
+              {`${((tx.value || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR`}
+            </>
+          ) : tx.kind}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// Standalone timeAgo (used in TxRow)
+function timeAgoFn(ts: number): string {
+  if (!ts) return 'Pending';
+  const seconds = Math.floor(Date.now() / 1000 - ts);
+  if (seconds < 60) return seconds + 's ago';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + (minutes === 1 ? ' min ago' : ' mins ago');
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + (hours === 1 ? ' hr ago' : ' hrs ago');
+  const days = Math.floor(hours / 24);
+  return days + (days === 1 ? ' day ago' : ' days ago');
+}
+
 
 /* ── ThunderScan Testnet (Full Explorer) ───────────────────────── */
 function ThunderScanTestnet() {
@@ -49,9 +119,8 @@ function ThunderScanTestnet() {
 
   const [viewTxDetails, setViewTxDetails] = useState<any>(null);
   const [viewBlockDetails, setViewBlockDetails] = useState<any>(null)
-
   const [viewAccountDetails, setViewAccountDetails] = useState<any>(null)
-  // ── Network States ──
+
   const [blockHeight, setBlockHeight] = useState<number>(0)
   const [blocks, setBlocks] = useState<any[]>([])
   const [txns, setTxns] = useState<any[]>([])
@@ -61,6 +130,7 @@ function ThunderScanTestnet() {
   const [activeCount, setActiveCount] = useState<number>(0)
   const [totalValidators, setTotalValidators] = useState<number>(0)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'overview' | 'validators' | 'api'>('overview')
 
   // Mirrors: thunder_rpc::server — JSON-RPC API methods
   const rpcMethods = [
@@ -74,9 +144,9 @@ function ThunderScanTestnet() {
     { method: 'thunder_bridgeMint', title: 'Bridge Mint', desc: 'Queue a cross-chain mint request via the Thunder Relayer.' },
   ]
 
+  // ── Data Fetching ──────────────────────────────────────────────
   useEffect(() => {
     let active = true;
-
     const loadRealtimeData = async () => {
       try {
         if (!active) return;
@@ -86,608 +156,347 @@ function ThunderScanTestnet() {
           fetch('http://127.0.0.1:5050/api/validators').then(res => res.json()),
           fetch('http://127.0.0.1:5050/api/mempool').then(res => res.json())
         ]);
-
         if (active) {
           setBlockHeight(statsRes.blockHeight || 0);
           setActiveCount(statsRes.activeValidators || 0);
           setTotalValidators(statsRes.activeValidators || 0);
-
           setBlocks(blockRes.blocks || []);
           setTxns(blockRes.transactions || []);
           setValidators(valRes || []);
           setMempoolTxns(mempoolRes || []);
         }
-      } catch (err) {
-        // Quietly fail or show empty state if backend is down
-      }
+      } catch (err) { /* Quietly fail */ }
     }
-
-    // Poll the Explorer Backend every 3 seconds
     loadRealtimeData()
     const interval = setInterval(loadRealtimeData, 3000)
     return () => { active = false; clearInterval(interval); }
   }, [])
 
   useEffect(() => {
-    if (!viewTxHash) {
-      setViewTxDetails(null)
-      return
-    }
+    if (!viewTxHash) { setViewTxDetails(null); return }
     const loadTx = async () => {
       try {
         const res = await fetch(`http://127.0.0.1:5050/api/tx/${viewTxHash}`)
-        if (res.ok) {
-          const data = await res.json()
-          setViewTxDetails(data)
-        } else {
-          setViewTxDetails({ error: true })
-        }
-      } catch (err) {
-        setViewTxDetails({ error: true })
-      }
+        if (res.ok) { setViewTxDetails(await res.json()) }
+        else { setViewTxDetails({ error: true }) }
+      } catch (err) { setViewTxDetails({ error: true }) }
     }
     loadTx()
   }, [viewTxHash])
 
   useEffect(() => {
-    if (viewBlockHeight === null) {
-      setViewBlockDetails(null)
-      return
-    }
+    if (viewBlockHeight === null) { setViewBlockDetails(null); return }
     const loadBlock = async () => {
       try {
         const res = await fetch(`http://127.0.0.1:5050/api/block/${viewBlockHeight}`)
-        if (res.ok) {
-          const data = await res.json()
-          setViewBlockDetails(data)
-        } else {
-          setViewBlockDetails({ error: true })
-        }
-      } catch (err) {
-        setViewBlockDetails({ error: true })
-      }
+        if (res.ok) { setViewBlockDetails(await res.json()) }
+        else { setViewBlockDetails({ error: true }) }
+      } catch (err) { setViewBlockDetails({ error: true }) }
     }
     loadBlock()
   }, [viewBlockHeight])
 
   useEffect(() => {
-    if (!viewAddress) {
-      setViewAccountDetails(null)
-      return
-    }
+    if (!viewAddress) { setViewAccountDetails(null); return }
     const loadAcc = async () => {
       try {
         const res = await fetch(`http://127.0.0.1:5050/api/account/${viewAddress}`)
-        if (res.ok) {
-          const data = await res.json()
-          setViewAccountDetails(data)
-        } else {
-          setSearchError("Address not found or has no historical transactions.")
-          setViewAddress(null)
-        }
+        if (res.ok) { setViewAccountDetails(await res.json()) }
+        else { setSearchError("Address not found or has no historical transactions."); setViewAddress(null) }
       } catch (err) { }
     }
     loadAcc()
   }, [viewAddress])
 
-  // date formatter
+  // ── Formatters ─────────────────────────────────────────────────
   const fmtDate = (ts: number) => {
     if (!ts) return '';
     const d = new Date(ts * 1000);
     return d.toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' +UTC';
   }
 
-  // search dispatcher
   const handleSearch = () => {
     if (!search) return;
     const s = search.trim();
     if (s.startsWith('0x')) {
-      if (s.length === 66) {
-        setViewTxHash(s);
-      } else if (s.length === 42) {
-        setViewAddress(s);
-      }
-      setViewBlockHeight(null);
-      setViewAll(null);
+      if (s.length === 66) { setViewTxHash(s); }
+      else if (s.length === 42) { setViewAddress(s); }
+      setViewBlockHeight(null); setViewAll(null);
     } else if (!isNaN(Number(s)) && s.length > 0) {
-      setViewBlockHeight(Number(s));
-      setViewAddress(null);
-      setViewTxHash(null);
-      setViewAll(null);
+      setViewBlockHeight(Number(s)); setViewAddress(null); setViewTxHash(null); setViewAll(null);
     }
   }
 
-  // relative time formatter
-  const timeAgo = (ts: number): string => {
-    if (!ts) return 'Pending';
-    const seconds = Math.floor(Date.now() / 1000 - ts);
-    if (seconds < 60) return seconds + ' secs ago';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return minutes + (minutes === 1 ? ' min ago' : ' mins ago');
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return hours + (hours === 1 ? ' hr ago' : ' hrs ago');
-    const days = Math.floor(hours / 24);
-    if (days < 30) return days + (days === 1 ? ' day ago' : ' days ago');
-    const months = Math.floor(days / 30);
-    if (months < 12) return months + (months === 1 ? ' mo ago' : ' mos ago');
-    const years = Math.floor(days / 365);
-    return years + (years === 1 ? ' yr ago' : ' yrs ago');
-  }
+  const timeAgo = (ts: number): string => timeAgoFn(ts);
+
+  // Navigation helpers
+  const goToTx = (hash: string) => { setViewAddress(null); setViewBlockHeight(null); setViewAll(null); setViewTxHash(hash); }
+  const goToAddr = (addr: string) => { setViewTxHash(null); setViewBlockHeight(null); setViewAll(null); setViewAddress(addr); }
+  const goToBlock = (h: number) => { setViewTxHash(null); setViewAddress(null); setViewAll(null); setViewBlockHeight(h); }
+  const goBack = () => { setViewTxHash(null); setViewBlockHeight(null); setViewAddress(null); setViewAll(null); }
 
 
+  // ══════════════════════════════════════════════════════════════
+  //  RENDER
+  // ══════════════════════════════════════════════════════════════
   return (
     <div className="scan-page">
       <div className="container">
-        {/* Hero + Network Toggle */}
-        <div className="scan-hero">
-          <div className="scan-hero-brand">
-            <img src="/logo.png" alt="ThunderScan" />
-            <h1>Thunder<span className="text-gradient">Scan</span></h1>
-          </div>
-          <p className="text-body">Explore blocks, transactions, and validators on the Thunder Testnet.</p>
-          <ScanNetworkToggle />
 
-          {/* Search */}
-          <div className="scan-search-wrap" style={{ position: 'relative' }}>
+        {/* ── Header ─────────────────────────────────────────── */}
+        <div className="scan-hero">
+
+          <div className="scan-search-wrapper">
             <input
               type="text"
               className="scan-search-input"
-              placeholder="Search by Address / Txn Hash / Block Height"
+              placeholder="Search by Address / Tx Hash / Block Height..."
               value={search}
               onChange={e => { setSearch(e.target.value); setSearchError(null); }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSearch();
-                }
-              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSearch(); } }}
             />
-            <button className="scan-search-btn" onClick={handleSearch}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-            </button>
+            <button className="scan-search-btn" onClick={handleSearch}>Search</button>
             {searchError && (
-              <div style={{ position: 'absolute', top: '110%', left: '0', color: '#F87171', fontSize: '0.9rem', background: 'rgba(239, 68, 68, 0.1)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+              <div style={{ position: 'absolute', top: '110%', left: 0, right: 0, color: 'var(--red)', fontSize: '0.85rem', background: 'rgba(239, 68, 68, 0.08)', padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
                 ⚠ {searchError}
               </div>
             )}
           </div>
         </div>
 
+        {/* ── Address View ───────────────────────────────────── */}
         {viewAddress ? (
-          <motion.div className="scan-panel" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
-              <button
-                onClick={() => setViewAddress(null)}
-                style={{ background: 'transparent', padding: '8px', cursor: 'pointer', border: 'none', color: 'var(--text-secondary)' }}
-              >
-                ← Back
-              </button>
+          <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <button className="scan-back-btn" onClick={() => setViewAddress(null)}>← Back</button>
               <h2 className="heading-md">
                 {viewAccountDetails?.type === 'Smart Contract' ? '📜 ' : '👤 '}
                 {viewAccountDetails?.type || 'Account'} Details
               </h2>
             </div>
             {!viewAccountDetails ? (
-              <p style={{ color: 'var(--text-secondary)' }}>Loading address...</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
-                    <div style={{ width: '200px', color: 'var(--text-secondary)' }}>Address:</div>
-                    <div style={{ fontFamily: 'monospace', color: 'var(--text)' }}>
-                      {viewAccountDetails.address}{" "}
-                      <span className="scan-badge" style={{ marginLeft: 12 }}>{viewAccountDetails.type}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px' }}>
-                    <div style={{ width: '200px', color: 'var(--text-secondary)' }}>Balance:</div>
-                    <div style={{ fontFamily: 'monospace', color: 'var(--text)', display: 'flex', alignItems: 'center' }}>
-                      <img src="/logo.png" style={{ width: 16, height: 16, marginRight: 6 }} alt="THDR" />
-                      {((viewAccountDetails.balance || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 style={{ fontSize: 16, marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
-                    Transactions ({viewAccountDetails.transactions?.length || 0})
-                  </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {viewAccountDetails.transactions?.map((tx: any, idx: number) => (
-                      <div className="scan-row" style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.2)' }} key={idx}>
-                        <div className="scan-row-icon">Tx</div>
-                        <div className="scan-row-main" style={{ flex: 1.5 }}>
-                          <div className="scan-row-title">
-                            <a href="#" onClick={(e) => { e.preventDefault(); setViewAddress(null); setViewTxHash(tx.hash); }}>
-                              {fmtHash(tx.hash)}
-                            </a>
-                          </div>
-                          <div className="scan-row-sub">{timeAgo(tx.timestamp)}</div>
-                        </div>
-                        <div className="scan-row-main" style={{ flex: 2 }}>
-                          <div className="scan-row-sub">From: <span style={{ fontFamily: 'monospace', color: tx.from === viewAccountDetails.address ? 'var(--text-secondary)' : 'var(--accent)' }}>{fmtAddr(tx.from)}</span></div>
-                          <div className="scan-row-sub">To: <span style={{ fontFamily: 'monospace', color: tx.to === viewAccountDetails.address ? 'var(--text-secondary)' : 'var(--accent)' }}>{tx.to ? fmtAddr(tx.to) : 'Unknown'}</span></div>
-                        </div>
-                        <div className="scan-row-meta">
-                          <span className={`scan-badge ${tx.kind === 'Deploy' ? 'purple' : tx.kind === 'Stake' ? 'green' : ''}`} style={{ display: 'flex', alignItems: 'center' }}>
-                            {tx.kind === 'Transfer' ? (
-                              <>
-                                <img src="/logo.png" style={{ width: 14, height: 14, marginRight: 4 }} alt="THDR" />
-                                {`${((tx.value || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR`}
-                              </>
-                            ) : tx.kind}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                    {viewAccountDetails.transactions?.length === 0 && (
-                      <p style={{ color: 'var(--text-secondary)' }}>No matching transactions found.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        ) : viewTxHash ? (
-          <motion.div className="scan-panel" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
-              <button
-                onClick={() => setViewTxHash(null)}
-                style={{ background: 'transparent', padding: '8px', cursor: 'pointer', border: 'none', color: 'var(--text-secondary)' }}
-              >
-                ← Back
-              </button>
-              <h2 className="heading-md">Transaction Details</h2>
-            </div>
-
-            {!viewTxDetails ? (
-              <p style={{ color: 'var(--text-secondary)' }}>Loading transaction...</p>
-            ) : viewTxDetails.error ? (
-              <div style={{ padding: '40px 0', textAlign: 'center' }}>
-                <h3 className="heading-md" style={{ color: 'var(--text-secondary)' }}>Transaction Not Found</h3>
-                <p>Ensure the transaction hash is correct. It may not have been broadcasted to the network yet.</p>
-              </div>
-            ) : (
-              <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', borderRadius: '12px' }}>
-                <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    Transaction Hash:
-                  </div>
-                  <div style={{ fontFamily: 'monospace', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {viewTxDetails.hash}
-                    <button onClick={() => navigator.clipboard.writeText(viewTxDetails.hash)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }} title="Copy Tx Hash">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    Status:
-                  </div>
-                  <div>
-                    <span className="scan-badge green" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                      Success
-                    </span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    Block:
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center' }} onClick={() => { setViewTxHash(null); setViewBlockHeight(viewTxDetails.block_height); }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 4 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                      {viewTxDetails.block_height}
-                    </div>
-                    <span className="scan-badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                      {blockHeight > 0 ? Math.max(1, blockHeight - viewTxDetails.block_height + 1) : 1} Block Confirmations
-                    </span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    Timestamp:
-                  </div>
-                  <div style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.7 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    {viewTxDetails.timestamp ? timeAgo(viewTxDetails.timestamp) : 'Pending'}
-                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>| {fmtDate(viewTxDetails.timestamp)}</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    From:
-                  </div>
-                  <div style={{ fontFamily: 'monospace', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setViewTxHash(null); setViewAddress(viewTxDetails.from); }}>
-                    {viewTxDetails.from}
-                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(viewTxDetails.from); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    To:
-                  </div>
-                  <div style={{ fontFamily: 'monospace', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setViewTxHash(null); setViewAddress(viewTxDetails.to); }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--text-secondary)' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    {viewTxDetails.to}
-                    <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(viewTxDetails.to); }} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    </button>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', paddingBottom: '8px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    Value:
-                  </div>
-                  <div style={{ fontFamily: 'monospace', color: 'var(--text)', display: 'flex', alignItems: 'center' }}>
-                    <img src="/logo.png" style={{ width: 16, height: 16, marginRight: 6 }} alt="THDR" />
-                    {viewTxDetails.value ? (viewTxDetails.value * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 }) : 0} THDR
-                  </div>
-                </div>
-                <div style={{ display: 'flex', paddingBottom: '8px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-                    Transaction Fee:
-                  </div>
-                  <div style={{ fontFamily: 'monospace', color: 'var(--text)', display: 'flex', alignItems: 'center' }}>
-                    {(viewTxDetails.gas_limit * viewTxDetails.gas_price * 1e-9).toFixed(11)} THDR
-                  </div>
-                </div>
-                <div style={{ display: 'flex', paddingBottom: '8px', alignItems: 'center' }}>
-                  <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                    Gas Price:
-                  </div>
-                  <div style={{ fontFamily: 'monospace', color: 'var(--text)', display: 'flex', alignItems: 'center' }}>
-                    {viewTxDetails.gas_price} Gwei <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>({(viewTxDetails.gas_price * 1e-9).toFixed(11)} THDR)</span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        ) : viewBlockHeight !== null ? (
-          <motion.div className="scan-panel" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
-              <button
-                onClick={() => setViewBlockHeight(null)}
-                style={{ background: 'transparent', padding: '8px', cursor: 'pointer', border: 'none', color: 'var(--text-secondary)' }}
-              >
-                ← Back
-              </button>
-              <h2 className="heading-md">Block Details <span style={{ color: 'var(--text-secondary)' }}>#{viewBlockHeight}</span></h2>
-            </div>
-
-            {!viewBlockDetails ? (
-              <p style={{ color: 'var(--text-secondary)' }}>Loading block...</p>
-            ) : viewBlockDetails.error ? (
-              <div style={{ padding: '40px 0', textAlign: 'center' }}>
-                <h3 className="heading-md" style={{ color: 'var(--text-secondary)' }}>Block Not Found</h3>
-                <p>The requested block height could not be located on the testnet.</p>
-              </div>
+              <div className="scan-empty"><div className="scan-empty-icon">⏳</div>Loading address...</div>
             ) : (
               <>
-                <div className="glass-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Block Height:
-                    </div>
-                    <div style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      {viewBlockDetails.height}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Status:
-                    </div>
-                    <div>
-                      <span className="scan-badge green" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                        Finalized (Safe)
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Timestamp:
-                    </div>
-                    <div style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.7 }}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                      {viewBlockDetails.timestamp ? timeAgo(viewBlockDetails.timestamp) : 'Pending'}
-                      <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>| {fmtDate(viewBlockDetails.timestamp)}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Proposed By:
-                    </div>
-                    <div style={{ fontFamily: 'monospace', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => { setViewBlockHeight(null); setViewAddress(viewBlockDetails.validator); }}>
-                      {viewBlockDetails.validator}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Block Hash:
-                    </div>
-                    <div style={{ fontFamily: 'monospace', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {viewBlockDetails.hash}
-                      <button onClick={() => navigator.clipboard.writeText(viewBlockDetails.hash)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '4px' }} title="Copy Block Hash">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Size:
-                    </div>
-                    <div style={{ color: 'var(--text)' }}>
-                      {(viewBlockDetails.size || 0).toLocaleString()} bytes
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Gas Used:
-                    </div>
-                    <div style={{ color: 'var(--text)' }}>
-                      {(viewBlockDetails.gas_used || 0).toLocaleString()} <span style={{ color: 'var(--text-secondary)' }}>({viewBlockDetails.gas_limit ? ((viewBlockDetails.gas_used || 0) / viewBlockDetails.gas_limit * 100).toFixed(2) : '0.00'}%)</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Gas Limit:
-                    </div>
-                    <div style={{ color: 'var(--text)' }}>
-                      {(viewBlockDetails.gas_limit || 0).toLocaleString()}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '16px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Base Fee Per Gas:
-                    </div>
-                    <div style={{ color: 'var(--text)' }}>
-                      {((viewBlockDetails.base_fee || 0) * 1e-9).toFixed(10)} THDR <span style={{ color: 'var(--text-secondary)' }}>({viewBlockDetails.base_fee || 0} Gwei)</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', paddingBottom: '8px', alignItems: 'center' }}>
-                    <div style={{ width: '250px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, opacity: 0.5 }}><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                      Block Reward:
-                    </div>
-                    <div style={{ color: 'var(--text)', display: 'flex', alignItems: 'center' }}>
-                      <img src="/logo.png" style={{ width: 14, height: 14, marginRight: 6 }} alt="THDR" />
-                      {(viewBlockDetails.reward || 0).toFixed(6)} THDR <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>(Base + Fees)</span>
-                    </div>
-                  </div>
-                </div>
+                <DetailRow label="Address">
+                  <span className="mono">{viewAccountDetails.address}</span>
+                  <CopyBtn text={viewAccountDetails.address} />
+                  <span className="scan-badge" style={{ marginLeft: 8 }}>{viewAccountDetails.type}</span>
+                </DetailRow>
+                <DetailRow label="Balance">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <img src="/logo.png" style={{ width: 16, height: 16 }} alt="THDR" />
+                    <span className="mono">{((viewAccountDetails.balance || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR</span>
+                  </span>
+                </DetailRow>
 
-                {/* Etherscan-Styled Embedded Transactions Table */}
-                <div style={{ marginTop: '24px' }}>
-                  <h3 style={{ fontSize: 16, marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', fontWeight: 600 }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, color: 'var(--text-secondary)' }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    A total of {viewBlockDetails.txn_count || (viewBlockDetails.transactions ? viewBlockDetails.transactions.length : 0)} transactions found
-                  </h3>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {viewBlockDetails.transactions?.map((tx: any, idx: number) => (
-                      <div className="scan-row" style={{ padding: '16px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', display: 'flex', alignItems: 'center' }} key={idx}>
-                        <div className="scan-row-icon" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)' }}>Tx</div>
-                        <div className="scan-row-main" style={{ flex: 1.5 }}>
-                          <div className="scan-row-title">
-                            <a href="#" onClick={(e) => { e.preventDefault(); setViewBlockHeight(null); setViewTxHash(tx.hash); }}>
-                              {fmtHash(tx.hash)}
-                            </a>
-                          </div>
-                          <div className="scan-row-sub">{timeAgo(viewBlockDetails.timestamp)}</div>
-                        </div>
-                        <div className="scan-row-main" style={{ flex: 2 }}>
-                          <div className="scan-row-sub">From: <a href="#" onClick={(e) => { e.preventDefault(); setViewBlockHeight(null); setViewAddress(tx.from); }}>{fmtAddr(tx.from)}</a></div>
-                          <div className="scan-row-sub">To: {tx.to ? <a href="#" onClick={(e) => { e.preventDefault(); setViewBlockHeight(null); setViewAddress(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to}</a> : 'Unknown'}</div>
-                        </div>
-                        <div className="scan-row-meta">
-                          <span className={`scan-badge ${tx.kind === 'Deploy' ? 'purple' : tx.kind === 'Stake' ? 'green' : ''}`} style={{ display: 'flex', alignItems: 'center' }}>
-                            {tx.kind === 'Transfer' ? (
-                              <>
-                                <img src="/logo.png" style={{ width: 14, height: 14, marginRight: 4 }} alt="THDR" />
-                                {`${((tx.value || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR`}
-                              </>
-                            ) : tx.kind}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                    {(!viewBlockDetails.transactions || viewBlockDetails.transactions.length === 0) && (
-                      <p style={{ color: 'var(--text-secondary)', padding: '16px', textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: '8px' }}>No transactions found for this block.</p>
-                    )}
+                <div style={{ marginTop: 28 }}>
+                  <div className="scan-section-header">
+                    <div className="scan-section-title">Transactions ({viewAccountDetails.transactions?.length || 0})</div>
                   </div>
+                  {viewAccountDetails.transactions?.map((tx: any, idx: number) => (
+                    <TxRow key={idx} tx={tx} onTxClick={(h) => { setViewAddress(null); setViewTxHash(h); }} onAddrClick={(a) => setViewAddress(a)} />
+                  ))}
+                  {viewAccountDetails.transactions?.length === 0 && (
+                    <div className="scan-empty">No transactions found for this address.</div>
+                  )}
                 </div>
               </>
             )}
           </motion.div>
+
+        /* ── Transaction View ─────────────────────────────────── */
+        ) : viewTxHash ? (
+          <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <button className="scan-back-btn" onClick={() => setViewTxHash(null)}>← Back</button>
+              <h2 className="heading-md">Transaction Details</h2>
+            </div>
+            {!viewTxDetails ? (
+              <div className="scan-empty"><div className="scan-empty-icon">⏳</div>Loading transaction...</div>
+            ) : viewTxDetails.error ? (
+              <div className="scan-empty">
+                <div className="scan-empty-icon">🔍</div>
+                <p style={{ color: 'var(--text-secondary)' }}>Transaction not found. It may not have been broadcasted yet.</p>
+              </div>
+            ) : (
+              <>
+                <DetailRow label="Tx Hash">
+                  <span className="mono">{viewTxDetails.hash}</span>
+                  <CopyBtn text={viewTxDetails.hash} />
+                </DetailRow>
+                <DetailRow label="Status">
+                  <span className="scan-badge green" style={{ gap: 4 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Success
+                  </span>
+                </DetailRow>
+                <DetailRow label="Block">
+                  <a href="#" onClick={(e) => { e.preventDefault(); setViewTxHash(null); goToBlock(viewTxDetails.block_height); }} style={{ color: 'var(--cyan)' }}>
+                    #{viewTxDetails.block_height}
+                  </a>
+                  <span className="scan-badge" style={{ marginLeft: 10 }}>
+                    {blockHeight > 0 ? Math.max(1, blockHeight - viewTxDetails.block_height + 1) : 1} Confirmations
+                  </span>
+                </DetailRow>
+                <DetailRow label="Timestamp">
+                  {viewTxDetails.timestamp ? timeAgo(viewTxDetails.timestamp) : 'Pending'}
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>({fmtDate(viewTxDetails.timestamp)})</span>
+                </DetailRow>
+                <DetailRow label="From">
+                  <a href="#" className="mono" style={{ color: 'var(--cyan)' }} onClick={(e) => { e.preventDefault(); setViewTxHash(null); goToAddr(viewTxDetails.from); }}>
+                    {viewTxDetails.from}
+                  </a>
+                  <CopyBtn text={viewTxDetails.from} />
+                </DetailRow>
+                <DetailRow label="To">
+                  <a href="#" className="mono" style={{ color: 'var(--cyan)' }} onClick={(e) => { e.preventDefault(); setViewTxHash(null); goToAddr(viewTxDetails.to); }}>
+                    {viewTxDetails.to}
+                  </a>
+                  <CopyBtn text={viewTxDetails.to} />
+                </DetailRow>
+                <DetailRow label="Value">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <img src="/logo.png" style={{ width: 15, height: 15 }} alt="THDR" />
+                    <span className="mono">{viewTxDetails.value ? (viewTxDetails.value * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 }) : 0} THDR</span>
+                  </span>
+                </DetailRow>
+                <DetailRow label="Transaction Fee">
+                  <span className="mono">{(viewTxDetails.gas_limit * viewTxDetails.gas_price * 1e-9).toFixed(11)} THDR</span>
+                </DetailRow>
+                <DetailRow label="Gas Price">
+                  <span className="mono">{viewTxDetails.gas_price} Gwei</span>
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>({(viewTxDetails.gas_price * 1e-9).toFixed(11)} THDR)</span>
+                </DetailRow>
+              </>
+            )}
+          </motion.div>
+
+        /* ── Block View ───────────────────────────────────────── */
+        ) : viewBlockHeight !== null ? (
+          <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <button className="scan-back-btn" onClick={() => setViewBlockHeight(null)}>← Back</button>
+              <h2 className="heading-md">Block <span style={{ color: 'var(--cyan)' }}>#{viewBlockHeight}</span></h2>
+            </div>
+            {!viewBlockDetails ? (
+              <div className="scan-empty"><div className="scan-empty-icon">⏳</div>Loading block...</div>
+            ) : viewBlockDetails.error ? (
+              <div className="scan-empty">
+                <div className="scan-empty-icon">🔍</div>
+                <p style={{ color: 'var(--text-secondary)' }}>Block not found on the testnet.</p>
+              </div>
+            ) : (
+              <>
+                <DetailRow label="Block Height">{viewBlockDetails.height}</DetailRow>
+                <DetailRow label="Status">
+                  <span className="scan-badge green" style={{ gap: 4 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    Finalized
+                  </span>
+                </DetailRow>
+                <DetailRow label="Timestamp">
+                  {viewBlockDetails.timestamp ? timeAgo(viewBlockDetails.timestamp) : 'Genesis'}
+                  {viewBlockDetails.timestamp ? <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>({fmtDate(viewBlockDetails.timestamp)})</span> : null}
+                </DetailRow>
+                <DetailRow label="Proposed By">
+                  <a href="#" className="mono" style={{ color: 'var(--cyan)' }} onClick={(e) => { e.preventDefault(); setViewBlockHeight(null); goToAddr(viewBlockDetails.validator); }}>
+                    {viewBlockDetails.validator}
+                  </a>
+                </DetailRow>
+                <DetailRow label="Block Hash">
+                  <span className="mono">{viewBlockDetails.hash}</span>
+                  <CopyBtn text={viewBlockDetails.hash} />
+                </DetailRow>
+                <DetailRow label="Size">{(viewBlockDetails.size || 0).toLocaleString()} bytes</DetailRow>
+                <DetailRow label="Gas Used">
+                  {(viewBlockDetails.gas_used || 0).toLocaleString()}
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                    ({viewBlockDetails.gas_limit ? ((viewBlockDetails.gas_used || 0) / viewBlockDetails.gas_limit * 100).toFixed(2) : '0.00'}%)
+                  </span>
+                </DetailRow>
+                <DetailRow label="Gas Limit">{(viewBlockDetails.gas_limit || 0).toLocaleString()}</DetailRow>
+                <DetailRow label="Base Fee">
+                  <span className="mono">{((viewBlockDetails.base_fee || 0) * 1e-9).toFixed(10)} THDR</span>
+                  <span style={{ color: 'var(--text-secondary)', marginLeft: 8 }}>({viewBlockDetails.base_fee || 0} Gwei)</span>
+                </DetailRow>
+                <DetailRow label="Block Reward">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <img src="/logo.png" style={{ width: 14, height: 14 }} alt="THDR" />
+                    <span className="mono">{(viewBlockDetails.reward || 0).toFixed(6)} THDR</span>
+                    <span style={{ color: 'var(--text-secondary)' }}>(Base + Fees)</span>
+                  </span>
+                </DetailRow>
+
+                {/* Transactions in Block */}
+                <div style={{ marginTop: 28 }}>
+                  <div className="scan-section-header">
+                    <div className="scan-section-title">
+                      Transactions ({viewBlockDetails.txn_count || (viewBlockDetails.transactions ? viewBlockDetails.transactions.length : 0)})
+                    </div>
+                  </div>
+                  {viewBlockDetails.transactions?.map((tx: any, idx: number) => (
+                    <TxRow
+                      key={idx}
+                      tx={tx}
+                      timestamp={viewBlockDetails.timestamp}
+                      onTxClick={(h) => { setViewBlockHeight(null); setViewTxHash(h); }}
+                      onAddrClick={(a) => { setViewBlockHeight(null); goToAddr(a); }}
+                    />
+                  ))}
+                  {(!viewBlockDetails.transactions || viewBlockDetails.transactions.length === 0) && (
+                    <div className="scan-empty">No transactions in this block.</div>
+                  )}
+                </div>
+              </>
+            )}
+          </motion.div>
+
+        /* ── All Blocks View ──────────────────────────────────── */
         ) : viewAll === 'blocks' ? (
-          <motion.div className="scan-panel" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
-              <button onClick={() => setViewAll(null)} style={{ background: 'transparent', padding: '8px', cursor: 'pointer', border: 'none', color: 'var(--text-secondary)' }}>← Back</button>
+          <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <button className="scan-back-btn" onClick={() => setViewAll(null)}>← Back</button>
               <h2 className="heading-md">All Blocks</h2>
             </div>
             {blocks.map(block => (
               <div className="scan-row" key={block.height}>
                 <div className="scan-row-icon">Bk</div>
                 <div className="scan-row-main">
-                  <div className="scan-row-title"><a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); setViewBlockHeight(block.height); }}>{block.height}</a></div>
-                  <div className="scan-row-sub">{block.height === 0 ? 'Genesis' : timeAgo(block.timestamp)}</div>
+                  <div className="scan-row-title"><a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); goToBlock(block.height); }}>{block.height}</a></div>
+                  <div className="scan-row-sub">{timeAgo(block.timestamp)}</div>
                 </div>
                 <div className="scan-row-main">
-                  <div className="scan-row-sub">Validator <a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); setViewAddress(block.validator); }}>{fmtAddr(block.validator)}</a></div>
+                  <div className="scan-row-sub">Validator <a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); goToAddr(block.validator); }}>{fmtAddr(block.validator)}</a></div>
                   <div className="scan-row-sub">{block.txn_count || 0} txns</div>
                 </div>
                 <div className="scan-row-meta">
                   <span className="scan-badge" style={{ display: 'flex', alignItems: 'center' }}>
-                    <img src="/logo.png" style={{ width: 14, height: 14, marginRight: 4 }} alt="THDR" />
+                    <img src="/logo.png" style={{ width: 13, height: 13, marginRight: 4 }} alt="THDR" />
                     {(block.reward || 0).toLocaleString('en-US', { maximumFractionDigits: 6 })} THDR
                   </span>
                 </div>
               </div>
             ))}
           </motion.div>
+
+        /* ── All Txns View ────────────────────────────────────── */
         ) : viewAll === 'txns' ? (
-          <motion.div className="scan-panel" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} style={{ padding: '32px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
-              <button onClick={() => setViewAll(null)} style={{ background: 'transparent', padding: '8px', cursor: 'pointer', border: 'none', color: 'var(--text-secondary)' }}>← Back</button>
+          <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <button className="scan-back-btn" onClick={() => setViewAll(null)}>← Back</button>
               <h2 className="heading-md">All Transactions</h2>
             </div>
             {txns.map((tx, i) => (
-              <div className="scan-row" key={i}>
-                <div className="scan-row-icon">Tx</div>
-                <div className="scan-row-main">
-                  <div className="scan-row-title">
-                    <a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); setViewTxHash(tx.hash) }}>{fmtHash(tx.hash)}</a>
-                  </div>
-                  <div className="scan-row-sub">{timeAgo(tx.timestamp)}</div>
-                </div>
-                <div className="scan-row-main" style={{ flex: 1.2 }}>
-                  <div className="scan-row-sub">From <a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); setViewAddress(tx.from); }}>{fmtAddr(tx.from)}</a></div>
-                  <div className="scan-row-sub">To <a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); setViewAddress(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Unknown'}</a></div>
-                </div>
-                <div className="scan-row-meta">
-                  <span className={`scan-badge ${tx.kind === 'Deploy' ? 'purple' : tx.kind === 'Stake' ? 'green' : ''}`} style={{ display: 'flex', alignItems: 'center' }}>
-                    {tx.kind === 'Transfer' ? (
-                      <>
-                        <img src="/logo.png" style={{ width: 14, height: 14, marginRight: 4 }} alt="THDR" />
-                        {`${((tx.value || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR`}
-                      </>
-                    ) : tx.kind}
-                  </span>
-                </div>
-              </div>
+              <TxRow key={i} tx={tx} onTxClick={(h) => { setViewAll(null); goToTx(h); }} onAddrClick={(a) => { setViewAll(null); goToAddr(a); }} />
             ))}
           </motion.div>
+
+        /* ── Dashboard ────────────────────────────────────────── */
         ) : (
           <>
-            {/* Stats Grid — mirrors WorldState + ValidatorSet */}
-            <motion.div className="scan-stats-grid" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-              <div className="scan-stat-card">
-                <div className="scan-stat-label">Thunder Price</div>
-                <div className="scan-stat-value">$1.24</div>
-                <div className="scan-stat-badge">+5.2%</div>
-              </div>
+            {/* Stats Cards */}
+            <motion.div className="scan-stats-grid" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
               <div className="scan-stat-card">
                 <div className="scan-stat-label">Block Height</div>
                 <div className="scan-stat-value">{blockHeight.toLocaleString()}</div>
@@ -695,8 +504,9 @@ function ThunderScanTestnet() {
               </div>
               <div className="scan-stat-card">
                 <div className="scan-stat-label">Network TPS</div>
-                <div className="scan-stat-value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  {blocks.length > 0 ? ((blocks[0].txn_count || 0) / 3.0).toFixed(1) : "0.0"} <span style={{ fontSize: 18, color: "var(--text-secondary)" }}>Tx/s</span>
+                <div className="scan-stat-value" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {blocks.length > 0 ? ((blocks[0].txn_count || 0) / 3.0).toFixed(1) : '0.0'}
+                  <span style={{ fontSize: 16, color: 'var(--text-secondary)', fontWeight: 400 }}>Tx/s</span>
                 </div>
                 <div className="scan-stat-badge">aBFT Velocity</div>
               </div>
@@ -707,189 +517,174 @@ function ThunderScanTestnet() {
               </div>
             </motion.div>
 
-            {/* Latest Blocks & Transactions — mirrors Block & Transaction structs */}
-            <motion.div className="scan-data-grid" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }}>
-              {/* Blocks Panel */}
-              <div className="scan-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-                <div className="scan-panel-header">
-                  <h3>📦 Latest Blocks</h3>
-                </div>
-                {blocks.slice(0, 6).map(block => (
-                  <div className="scan-row" key={block.height}>
-                    <div className="scan-row-icon">Bk</div>
-                    <div className="scan-row-main">
-                      <div className="scan-row-title"><a href="#" onClick={(e) => { e.preventDefault(); setViewBlockHeight(block.height); }}>{block.height}</a></div>
-                      <div className="scan-row-sub">{timeAgo(block.timestamp)}</div>
-                    </div>
-                    <div className="scan-row-main">
-                      <div className="scan-row-sub">Validator <a href="#" onClick={(e) => { e.preventDefault(); setViewAddress(block.validator); }}>{fmtAddr(block.validator)}</a></div>
-                      <div className="scan-row-sub">{block.txn_count || 0} txns</div>
-                    </div>
-                    <div className="scan-row-meta">
-                      <span className="scan-badge" style={{ display: 'flex', alignItems: 'center' }}>
-                        <img src="/logo.png" style={{ width: 14, height: 14, marginRight: 4 }} alt="THDR" />
-                        {(block.reward || 0).toLocaleString('en-US', { maximumFractionDigits: 6 })} THDR
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {blocks.length === 0 && <p style={{ color: 'var(--text-secondary)', padding: '16px' }}>No blocks processed yet.</p>}
-                <a href="#" className="scan-view-all" style={{ marginTop: 'auto' }} onClick={(e) => { e.preventDefault(); setViewAll('blocks'); }}>View all blocks →</a>
-              </div>
+            {/* Tabs */}
+            <div className="scan-tabs">
+              <button className={`scan-tab ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')}>Overview</button>
+              <button className={`scan-tab ${activeTab === 'validators' ? 'active' : ''}`} onClick={() => setActiveTab('validators')}>Validators</button>
+              <button className={`scan-tab ${activeTab === 'api' ? 'active' : ''}`} onClick={() => setActiveTab('api')}>RPC API</button>
+            </div>
 
-              {/* Mempool Panel */}
-              {mempoolTxns.length > 0 && (
-                <div className="scan-panel" style={{ gridColumn: '1 / -1', border: '1px solid rgba(251, 191, 36, 0.4)', borderRadius: 16 }}>
-                  <div className="scan-panel-header" style={{ borderBottom: '1px solid rgba(251, 191, 36, 0.1)', paddingBottom: 16, marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
-                    <h3 style={{ color: '#FCD34D', display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
-                      <span style={{ fontSize: '1.2rem' }}>⏳</span> Pending Transactions (Mempool)
-                    </h3>
-                    <span className="scan-badge" style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#FCD34D', border: '1px solid rgba(251, 191, 36, 0.3)' }}>{mempoolTxns.length} pending</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {activeTab === 'overview' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+                {/* Mempool */}
+                {mempoolTxns.length > 0 && (
+                  <div className="scan-panel" style={{ marginBottom: 20, border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                    <div className="scan-section-header">
+                      <div className="scan-section-title" style={{ color: 'var(--amber)' }}>
+                        ⏳ Pending Transactions
+                      </div>
+                      <span className="scan-badge amber">{mempoolTxns.length} pending</span>
+                    </div>
                     {mempoolTxns.map((tx: any, i) => (
-                      <div className="scan-row" key={'mem' + i} style={{ background: 'linear-gradient(90deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.02) 100%)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center' }}>
-                        <div className="scan-row-icon" style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#FCD34D', border: '1px solid rgba(251, 191, 36, 0.3)' }}>⟳</div>
-                        <div className="scan-row-main" style={{ minWidth: 200, flex: 1 }}>
+                      <div className="scan-row" key={'mem' + i} style={{ background: 'rgba(245, 158, 11, 0.03)' }}>
+                        <div className="scan-row-icon" style={{ background: 'var(--amber-dim)', color: 'var(--amber)', borderColor: 'rgba(245, 158, 11, 0.15)' }}>⟳</div>
+                        <div className="scan-row-main">
                           <div className="scan-row-title">
-                            <a href="#" onClick={(e) => { e.preventDefault(); setViewTxHash(tx.hash) }} style={{ color: '#60A5FA' }}>{fmtHash(tx.hash)}</a>
+                            <a href="#" onClick={(e) => { e.preventDefault(); goToTx(tx.hash) }}>{fmtHash(tx.hash)}</a>
                           </div>
-                          <div className="scan-row-sub" style={{ color: '#FCD34D', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#FBBF24', boxShadow: '0 0 8px #FBBF24' }}></span>
-                            Pending Validation
+                          <div className="scan-row-sub" style={{ color: 'var(--amber)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--amber)', display: 'inline-block' }}></span>
+                            Pending
                           </div>
                         </div>
                         <div className="scan-row-main" style={{ flex: 1.5 }}>
-                          <div className="scan-row-sub" style={{ display: 'flex', gap: 8, marginBottom: 4 }}>
-                            <span style={{ color: 'var(--text-secondary)', width: 40 }}>From</span>
-                            <a href="#" onClick={(e) => { e.preventDefault(); setViewAddress(tx.from); }}>{fmtAddr(tx.from)}</a>
-                          </div>
-                          <div className="scan-row-sub" style={{ display: 'flex', gap: 8 }}>
-                            <span style={{ color: 'var(--text-secondary)', width: 40 }}>To</span>
-                            <a href="#" onClick={(e) => { e.preventDefault(); setViewAddress(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Unknown'}</a>
-                          </div>
+                          <div className="scan-row-sub">From <a href="#" onClick={(e) => { e.preventDefault(); goToAddr(tx.from); }}>{fmtAddr(tx.from)}</a></div>
+                          <div className="scan-row-sub">To <a href="#" onClick={(e) => { e.preventDefault(); goToAddr(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Contract'}</a></div>
                         </div>
-                        <div className="scan-row-meta" style={{ flex: 0.5, textAlign: 'right' }}>
-                          <span className="scan-badge" style={{ backgroundColor: 'rgba(52, 211, 153, 0.1)', color: '#34D399', border: '1px solid rgba(52, 211, 153, 0.2)', padding: '6px 12px' }}>
-                            {tx.kind === 'Transfer' ? (
-                              <>{`${((tx.value || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR`}</>
-                            ) : tx.kind}
+                        <div className="scan-row-meta">
+                          <span className="scan-badge green" style={{ display: 'flex', alignItems: 'center' }}>
+                            {tx.kind === 'Transfer' ? `${((tx.value || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR` : tx.kind}
                           </span>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Transactions Panel */}
-              <div className="scan-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-                <div className="scan-panel-header">
-                  <h3>⚡ Latest Transactions</h3>
-                </div>
-                {txns.slice(0, 6).map((tx, i) => (
-                  <div className="scan-row" key={i}>
-                    <div className="scan-row-icon">Tx</div>
-                    <div className="scan-row-main">
-                      <div className="scan-row-title">
-                        <a href="#" onClick={(e) => { e.preventDefault(); setViewTxHash(tx.hash) }}>{fmtHash(tx.hash)}</a>
+                {/* Blocks + Transactions */}
+                <div className="scan-content-grid">
+                  <div className="scan-panel">
+                    <div className="scan-section-header">
+                      <div className="scan-section-title">📦 Latest Blocks</div>
+                      <button className="scan-view-all" onClick={() => setViewAll('blocks')}>View all →</button>
+                    </div>
+                    {blocks.slice(0, 6).map(block => (
+                      <div className="scan-row" key={block.height}>
+                        <div className="scan-row-icon">Bk</div>
+                        <div className="scan-row-main">
+                          <div className="scan-row-title"><a href="#" onClick={(e) => { e.preventDefault(); goToBlock(block.height); }}>{block.height}</a></div>
+                          <div className="scan-row-sub">{timeAgo(block.timestamp)}</div>
+                        </div>
+                        <div className="scan-row-main">
+                          <div className="scan-row-sub">
+                            <a href="#" onClick={(e) => { e.preventDefault(); goToAddr(block.validator); }}>{fmtAddr(block.validator)}</a>
+                          </div>
+                          <div className="scan-row-sub">{block.txn_count || 0} txns</div>
+                        </div>
+                        <div className="scan-row-meta">
+                          <span className="scan-badge" style={{ display: 'flex', alignItems: 'center' }}>
+                            <img src="/logo.png" style={{ width: 13, height: 13, marginRight: 4 }} alt="" />
+                            {(block.reward || 0).toLocaleString('en-US', { maximumFractionDigits: 6 })} THDR
+                          </span>
+                        </div>
                       </div>
-                      <div className="scan-row-sub">{timeAgo(tx.timestamp)}</div>
-                    </div>
-                    <div className="scan-row-main" style={{ flex: 1.2 }}>
-                      <div className="scan-row-sub">From <a href="#" onClick={(e) => { e.preventDefault(); setViewAddress(tx.from); }}>{fmtAddr(tx.from)}</a></div>
-                      <div className="scan-row-sub">To <a href="#" onClick={(e) => { e.preventDefault(); setViewAddress(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Unknown'}</a></div>
-                    </div>
-                    <div className="scan-row-meta">
-                      <span className={`scan-badge ${tx.kind === 'Deploy' ? 'purple' : tx.kind === 'Stake' ? 'green' : ''}`} style={{ display: 'flex', alignItems: 'center' }}>
-                        {tx.kind === 'Transfer' ? (
-                          <>
-                            <img src="/logo.png" style={{ width: 14, height: 14, marginRight: 4 }} alt="THDR" />
-                            {`${((tx.value || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR`}
-                          </>
-                        ) : tx.kind}
-                      </span>
-                    </div>
+                    ))}
+                    {blocks.length === 0 && <div className="scan-empty">No blocks yet.</div>}
                   </div>
-                ))}
-                {txns.length === 0 && <p style={{ color: 'var(--text-secondary)', padding: '16px' }}>No finalized transactions yet.</p>}
-                <a href="#" className="scan-view-all" style={{ marginTop: 'auto' }} onClick={(e) => { e.preventDefault(); setViewAll('txns'); }}>View all transactions →</a>
-              </div>
-            </motion.div>
 
-            {/* Validators Section & API Section */}
-            <motion.div className="scan-validators-section" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-              <h2 className="heading-lg" style={{ marginBottom: 24 }}>Active <span className="text-gradient">Validators</span></h2>
-              <div className="scan-validators-grid">
-                {validators.map((v, i) => (
-                  <div className="scan-validator-card" key={i}>
-                    <div className="scan-validator-avatar">{v.name.charAt(0)}</div>
-                    <div className="scan-validator-info">
-                      <div className="scan-validator-name">
-                        <span className={`scan-status-dot ${v.is_active ? 'active' : 'inactive'}`}></span>
-                        {v.name}
+                  <div className="scan-panel">
+                    <div className="scan-section-header">
+                      <div className="scan-section-title">⚡ Latest Transactions</div>
+                      <button className="scan-view-all" onClick={() => setViewAll('txns')}>View all →</button>
+                    </div>
+                    {txns.slice(0, 6).map((tx, i) => (
+                      <TxRow key={i} tx={tx} onTxClick={goToTx} onAddrClick={goToAddr} />
+                    ))}
+                    {txns.length === 0 && <div className="scan-empty">No transactions yet.</div>}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'validators' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+                <div className="scan-panel">
+                  <div className="scan-section-header" style={{ marginBottom: 16 }}>
+                    <div className="scan-section-title">Active Validators</div>
+                    <span className="scan-badge green">{validators.length} active</span>
+                  </div>
+                  {validators.map((v, i) => (
+                    <div className="scan-validator-row" key={i}>
+                      <div className="scan-validator-avatar">{v.name?.charAt(0) || '#'}</div>
+                      <div className="scan-validator-info">
+                        <div className="scan-validator-name" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: v.is_active ? 'var(--green)' : 'var(--text-tertiary)', display: 'inline-block' }}></span>
+                          {v.name}
+                        </div>
+                        <div className="scan-validator-addr" style={{ cursor: 'pointer' }} onClick={() => goToAddr(v.address)}>
+                          {v.address}
+                        </div>
                       </div>
-                      <div className="scan-validator-addr" style={{ cursor: 'pointer' }} onClick={() => setViewAddress(v.address)}>
-                        {v.address}
+                      <div className="scan-validator-stake">
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{(v.stake * 1e-9).toLocaleString()}</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginLeft: 6 }}>THDR</span>
                       </div>
                     </div>
-                    <div className="scan-validator-stake">
-                      <div className="scan-validator-stake-value">{(v.stake * 1e-9).toLocaleString()}</div>
-                      <div className="scan-validator-stake-label">THDR Staked</div>
-                    </div>
+                  ))}
+                  {validators.length === 0 && <div className="scan-empty">No active validators discovered.</div>}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'api' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+                <div className="scan-panel" style={{ marginBottom: 20 }}>
+                  <div className="scan-section-header" style={{ marginBottom: 8 }}>
+                    <div className="scan-section-title">Thunder RPC API</div>
                   </div>
-                ))}
-                {validators.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>No active validators discovered.</p>}
-              </div>
-            </motion.div>
-            <motion.div className="scan-api-section" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-              <h2 className="heading-lg" style={{ marginBottom: 8 }}>Thunder <span className="text-gradient">RPC API</span></h2>
-              <p className="text-body" style={{ marginBottom: 32 }}>Connect your dApp to the Thunder Testnet using our JSON-RPC 2.0 interface.</p>
-              <div className="scan-api-grid">
-                {rpcMethods.map((api, i) => (
-                  <div className="scan-api-card" key={i}>
-                    <div className="scan-api-method">{api.method}</div>
-                    <div className="scan-api-title">{api.title}</div>
-                    <div className="scan-api-desc">{api.desc}</div>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: 20 }}>
+                    Connect your dApp to the Thunder Testnet using our JSON-RPC 2.0 interface.
+                  </p>
+                  <div className="scan-rpc-grid">
+                    {rpcMethods.map((api, i) => (
+                      <div className="scan-rpc-card" key={i}>
+                        <div className="scan-rpc-method">{api.method}</div>
+                        <div className="scan-rpc-title">{api.title}</div>
+                        <div className="scan-rpc-desc">{api.desc}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </motion.div>
+                </div>
+              </motion.div>
+            )}
           </>
         )}
       </div>
-    </div >
+    </div>
   )
 }
+
 
 /* ── ThunderScan Mainnet (Coming Soon) ─────────────────────────── */
 function ThunderScanMainnet() {
   return (
     <div className="scan-page">
       <div className="container">
-        <div className="scan-hero">
-          <div className="scan-hero-brand">
-            <img src="/logo.png" alt="ThunderScan" />
-            <h1>Thunder<span className="text-gradient">Scan</span></h1>
-          </div>
-          <p className="text-body">Select a network to explore.</p>
-          <ScanNetworkToggle />
-        </div>
-
-        <div className="scan-coming-soon">
+        <div className="scan-hero"></div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
           <motion.div
             className="glass-card scan-coming-soon-card"
-            initial={{ opacity: 0, scale: 0.9 }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', damping: 15 }}
+            transition={{ type: 'spring', damping: 20 }}
           >
             <span className="scan-coming-soon-icon">⚡</span>
-            <h2>Mainnet <span className="text-gradient">Coming Soon</span></h2>
-            <p>
-              The Thunder Mainnet is currently under development. Our team is finalizing the genesis validator set, security audits, and cross-chain bridge infrastructure.
-              In the meantime, explore the <Link to="/thunderscan/testnet" className="text-gradient" style={{ fontWeight: 600 }}>Testnet Explorer</Link> to interact with live data.
+            <h2 className="heading-lg">Mainnet <span className="text-gradient">Coming Soon</span></h2>
+            <p className="text-body" style={{ margin: '16px 0' }}>
+              The Thunder Mainnet is currently under development. Explore the{' '}
+              <Link to="/thunderscan/testnet" className="text-gradient" style={{ fontWeight: 600 }}>Testnet Explorer</Link> to interact with live data.
             </p>
-            <Link to="/thunderscan/testnet" className="btn btn-primary">🧪 Explore Testnet</Link>
+            <Link to="/thunderscan/testnet" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>🧪 Explore Testnet</Link>
           </motion.div>
         </div>
       </div>
@@ -898,7 +693,7 @@ function ThunderScanMainnet() {
 }
 
 
-/* ── ThunderScan Layout ─────────────────────────────────────────── */
+/* ── Layout Components ─────────────────────────────────────────── */
 function ScanNavbar() {
   const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
@@ -908,18 +703,24 @@ function ScanNavbar() {
   }, [])
 
   return (
-    <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
-      <div className="container">
-        <Link to="/thunderscan/testnet" className="nav-logo">
-          <img src="/logo.png" alt="ThunderScan" />
-          <span>Thunder<span className="text-gradient">Scan</span></span>
-        </Link>
-        <div className="nav-links">
-          <Link to="/thunderscan/mainnet">Mainnet</Link>
-          <Link to="/thunderscan/testnet">Testnet Edge</Link>
+    <nav className={`scan-navbar ${scrolled ? 'scrolled' : ''}`}>
+      <div className="scan-navbar-inner">
+        {/* Left (Logo) */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+          <Link to="/thunderscan/testnet" className="nav-logo">
+            <img src="/logo.png" alt="ThunderScan" />
+            <span>Thunder<span className="text-gradient">Scan</span></span>
+          </Link>
         </div>
-        <div className="nav-cta">
-          <Link to="/" className="btn btn-outline" style={{ padding: '10px 20px', fontSize: '0.85rem' }}>← Back to Website</Link>
+
+        {/* Center (Network Toggle) */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <ScanNetworkToggle />
+        </div>
+
+        {/* Right (Back Button) */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+          <Link to="/" className="btn btn-outline btn-sm scan-navbar-btn">← Back to Website</Link>
         </div>
       </div>
     </nav>
@@ -928,9 +729,9 @@ function ScanNavbar() {
 
 function ScanFooter() {
   return (
-    <footer className="footer" style={{ background: 'var(--bg-primary)', borderTop: '1px solid var(--glass-border)', padding: '40px 0 20px' }}>
-      <div className="container" style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-        © 2026 ThunderScan Explorer. Powered by Thunder Core-Engine.
+    <footer className="footer" style={{ padding: '32px 0 20px' }}>
+      <div className="container" style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.82rem' }}>
+        © 2026 ThunderScan Explorer — Powered by Thunder Core-Engine
       </div>
     </footer>
   )
