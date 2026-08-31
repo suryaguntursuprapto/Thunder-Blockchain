@@ -58,9 +58,7 @@ function ThunderScanTestnet() {
   const [mempoolTxns, setMempoolTxns] = useState<any[]>([])
   const [validators, setValidators] = useState<any[]>([])
 
-  const [totalStake, setTotalStake] = useState<number>(0)
   const [activeCount, setActiveCount] = useState<number>(0)
-  const [supermajority, setSupermajority] = useState<number>(0)
   const [totalValidators, setTotalValidators] = useState<number>(0)
   const [searchError, setSearchError] = useState<string | null>(null)
 
@@ -91,10 +89,8 @@ function ThunderScanTestnet() {
 
         if (active) {
           setBlockHeight(statsRes.blockHeight || 0);
-          setTotalStake(statsRes.totalStaked || 0);
           setActiveCount(statsRes.activeValidators || 0);
           setTotalValidators(statsRes.activeValidators || 0);
-          setSupermajority(Math.ceil((statsRes.activeValidators || 0) * 2 / 3));
 
           setBlocks(blockRes.blocks || []);
           setTxns(blockRes.transactions || []);
@@ -636,7 +632,7 @@ function ThunderScanTestnet() {
                 <div className="scan-row-icon">Bk</div>
                 <div className="scan-row-main">
                   <div className="scan-row-title"><a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); setViewBlockHeight(block.height); }}>{block.height}</a></div>
-                  <div className="scan-row-sub">{timeAgo(block.timestamp)}</div>
+                  <div className="scan-row-sub">{block.height === 0 ? 'Genesis' : timeAgo(block.timestamp)}</div>
                 </div>
                 <div className="scan-row-main">
                   <div className="scan-row-sub">Validator <a href="#" onClick={(e) => { e.preventDefault(); setViewAll(null); setViewAddress(block.validator); }}>{fmtAddr(block.validator)}</a></div>
@@ -696,19 +692,19 @@ function ThunderScanTestnet() {
                 <div className="scan-stat-label">Block Height</div>
                 <div className="scan-stat-value">{blockHeight.toLocaleString()}</div>
                 <div className="scan-stat-badge">~3.0s / block</div>
+              </div>
+              <div className="scan-stat-card">
+                <div className="scan-stat-label">Network TPS</div>
+                <div className="scan-stat-value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {blocks.length > 0 ? ((blocks[0].txn_count || 0) / 3.0).toFixed(1) : "0.0"} <span style={{ fontSize: 18, color: "var(--text-secondary)" }}>Tx/s</span>
                 </div>
-                <div className="scan-stat-card">
-                  <div className="scan-stat-label">Network TPS</div>
-                  <div className="scan-stat-value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {blocks.length > 0 ? ((blocks[0].txn_count || 0) / 3.0).toFixed(1) : "0.0"} <span style={{ fontSize: 18, color: "var(--text-secondary)" }}>Tx/s</span>
-                  </div>
-                  <div className="scan-stat-badge">aBFT Velocity</div>
-                </div>
-                <div className="scan-stat-card">
-                  <div className="scan-stat-label">Active Validators</div>
-                  <div className="scan-stat-value">{activeCount} / {totalValidators}</div>
-                  <div className="scan-stat-badge">aBFT DAG Consensus</div>
-                </div>
+                <div className="scan-stat-badge">aBFT Velocity</div>
+              </div>
+              <div className="scan-stat-card">
+                <div className="scan-stat-label">Active Validators</div>
+                <div className="scan-stat-value">{activeCount} / {totalValidators}</div>
+                <div className="scan-stat-badge">aBFT DAG Consensus</div>
+              </div>
             </motion.div>
 
             {/* Latest Blocks & Transactions — mirrors Block & Transaction structs */}
