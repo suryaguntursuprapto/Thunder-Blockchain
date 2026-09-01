@@ -193,6 +193,12 @@ impl Node {
         for tx_hash in &output.ordered_tx_hashes {
             if let Some(pos) = self.mempool.iter().position(|t| t.hash() == *tx_hash) {
                 let tx = self.mempool.remove(pos);
+                
+                // Process staking directly before applying state
+                if tx.kind == thunder_core::transaction::TransactionKind::Stake {
+                    let _ = self.validator_set.register(tx.from, tx.public_key, tx.value);
+                }
+                
                 let _ = self.state.write().unwrap().apply_transaction(&tx);
                 block_txs.push(tx);
             }
