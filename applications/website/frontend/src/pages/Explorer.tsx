@@ -131,6 +131,19 @@ function ThunderScanTestnet() {
   const [totalValidators, setTotalValidators] = useState<number>(0)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'validators' | 'api'>('overview')
+  
+  const location = useLocation()
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const txParam = params.get('tx')
+    if (txParam) {
+      setViewTxHash(txParam)
+      setViewAll(null)
+      setViewAddress(null)
+      setViewBlockHeight(null)
+    }
+  }, [location.search])
 
   // Mirrors: thunder_rpc::server — JSON-RPC API methods
   const rpcMethods = [

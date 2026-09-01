@@ -51,11 +51,33 @@ function useReveal() {
 /* ── Navbar ────────────────────────────────────────────────────── */
 function Navbar() {
   const [scrolled, setScrolled] = useState(false)
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  const [isConnecting, setIsConnecting] = useState(false)
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50)
     window.addEventListener('scroll', onScroll)
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
+
+  const connectWallet = async () => {
+    if (typeof (window as any).thunder !== 'undefined') {
+      setIsConnecting(true)
+      try {
+        const accounts = await (window as any).thunder.request({ method: 'thunder_accounts' })
+        if (accounts && accounts.length > 0) {
+          setWalletAddress(accounts[0])
+        }
+      } catch (err) {
+        console.error("Failed to connect wallet", err)
+      } finally {
+        setIsConnecting(false)
+      }
+    } else {
+      alert("Thunder Wallet not detected! Please install the browser extension.")
+    }
+  }
+
   return (
     <nav className={`navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="container">
@@ -71,7 +93,19 @@ function Navbar() {
           <Link to="/thunderscan/testnet">ThunderScan</Link>
         </div>
         <div className="nav-cta">
-          <Link to="/coming-soon?product=wallet" className="btn btn-outline btn-sm">Thunder Wallet</Link>
+          {walletAddress ? (
+            <span className="btn btn-outline btn-sm" style={{ cursor: 'default' }}>
+              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+            </span>
+          ) : (
+            <button 
+              onClick={connectWallet} 
+              disabled={isConnecting}
+              className="btn btn-outline btn-sm"
+              style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
+              {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+            </button>
+          )}
           <Link to="/thunderscan/testnet" className="btn btn-primary btn-sm">⚡ ThunderScan</Link>
         </div>
       </div>
