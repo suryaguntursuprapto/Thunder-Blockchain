@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Thunder Wallet",
+  "version": "1.0.0",
+  "description": "Multi-chain Web3 Wallet built for the Thunder Network.",
+  "action": {
+    "default_popup": "index.html"
+  },
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["assets/content.js"]
+    }
+  ],
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/inject.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
