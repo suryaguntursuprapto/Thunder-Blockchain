@@ -2,11 +2,16 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -245,6 +250,106 @@ func main() {
 			"balance":      balance,
 			"type":         "Wallet",
 			"transactions": transactions,
+		})
+	})
+
+	// /api/tx/send
+	app.Post("/api/tx/send", func(c *fiber.Ctx) error {
+		type SendReq struct {
+			To         string `json:"to"`
+			Amount     string `json:"amount"`
+			PrivateKey string `json:"private_key"`
+		}
+		var req SendReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+
+		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "tx", "send", "--to", req.To, "--amount", req.Amount)
+		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network"
+		cmd.Stdin = bytes.NewBufferString(req.PrivateKey + "\n")
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to execute tx send", "details": string(output)})
+		}
+
+		outStr := string(output)
+		if strings.Contains(outStr, "❌") || strings.Contains(outStr, "Error") || strings.Contains(outStr, "error") {
+			return c.Status(400).JSON(fiber.Map{"error": outStr})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"output":  outStr,
+		})
+	})
+
+	// /api/tx/stake
+	app.Post("/api/tx/stake", func(c *fiber.Ctx) error {
+		type StakeReq struct {
+			Amount     string `json:"amount"`
+			PrivateKey string `json:"private_key"`
+		}
+		var req StakeReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+		
+		pkHex := req.PrivateKey
+		if strings.HasPrefix(pkHex, "0x") {
+			pkHex = pkHex[2:]
+		}
+
+		seed, err := hex.DecodeString(pkHex)
+		if err != nil || len(seed) != 32 {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid private key format"})
+		}
+		
+		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "tx", "stake", "--amount", req.Amount)
+		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network"
+		cmd.Stdin = bytes.NewBufferString(pkHex + "\n")
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to execute tx stake", "details": string(output)})
+		}
+
+		outStr := string(output)
+		if strings.Contains(outStr, "❌") || strings.Contains(outStr, "Error") || strings.Contains(outStr, "error") {
+			return c.Status(400).JSON(fiber.Map{"error": outStr})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"output":  outStr,
+		})
+	})
+
+	// /api/wallet/derive-address
+	app.Post("/api/wallet/derive-address", func(c *fiber.Ctx) error {
+		type DeriveReq struct {
+			PrivateKey string `json:"private_key"`
+		}
+		var req DeriveReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+		
+		pkHex := strings.TrimPrefix(req.PrivateKey, "0x")
+		seed, err := hex.DecodeString(pkHex)
+		if err != nil || len(seed) != 32 {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid private key format (must be 32 bytes hex)"})
+		}
+		
+		privKey := ed25519.NewKeyFromSeed(seed)
+		pubKey := privKey.Public().(ed25519.PublicKey)
+		
+		hash := sha256.Sum256(pubKey)
+		address := "0x" + hex.EncodeToString(hash[:20])
+		
+		return c.JSON(fiber.Map{
+			"address": address,
 		})
 	})
 
