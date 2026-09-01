@@ -99,6 +99,13 @@ enum TxCommands {
         #[arg(short, long, default_value_t = 21000)]
         gas_limit: u64,
     },
+    /// Stake coins to become a validator.
+    Stake {
+        #[arg(short, long)]
+        amount: u64,
+        #[arg(short, long, default_value_t = 21000)]
+        gas_limit: u64,
+    },
 }
 
 // ── Contract Subcommands ───────────────────────────────────────────────────
@@ -609,6 +616,84 @@ fn main() {
                         let json: serde_json::Value = res.json().unwrap_or_default();
                         if let Some(result) = json.get("result") {
                             println!("  ✅ Transaction Submitted Successfully!");
+                            println!(
+                                "  tx_hash : {}",
+                                result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or("")
+                            );
+                            println!("  amount  : {} THDR", amount);
+                            println!("  gas     : {}", gas_limit);
+                        } else {
+                            println!("  ❌ RPC Error: {:?}", json.get("error"));
+                        }
+                    }
+                    Err(e) => println!("  ❌ Failed to connect to node: {}", e),
+                }
+            }
+            TxCommands::Stake { amount, gas_limit } => {
+                println!("⚡ Initiating Stake Transaction");
+                println!("  To authenticate, please provide your Wallet Secret Key.");
+
+                use std::io::{self, Write};
+                print!("  [🔑] Enter Secret Key (Hex): ");
+                io::stdout().flush().unwrap();
+                let mut secret_input = String::new();
+                io::stdin().read_line(&mut secret_input).unwrap();
+                let secret_input = secret_input.trim();
+
+                let secret_bytes = match hex::decode(secret_input) {
+                    Ok(b) if b.len() == 32 => {
+                        let mut arr = [0u8; 32];
+                        arr.copy_from_slice(&b);
+                        arr
+                    }
+                    _ => {
+                        println!("  ❌ Invalid Secret Key length (expected 32-byte hex).");
+                        return;
+                    }
+                };
+
+                let key_pair = KeyPair::from_secret_bytes(&secret_bytes);
+
+                println!(
+                    "  ↳ Signing stake transaction as 0x{}...",
+                    hex::encode(key_pair.address())
+                );
+                
+                let unique_nonce = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .subsec_nanos() as u64;
+                    
+                let mut tx = thunder_core::transaction::Transaction::new_stake(
+                    100, 
+                    unique_nonce,
+                    key_pair.address(),
+                    amount,
+                    gas_limit,
+                    1,
+                );
+                tx.sign(&key_pair);
+                let serialized_tx =
+                    bincode::serialize(&tx).expect("Failed to serialize transaction");
+                let hex_data = hex::encode(serialized_tx);
+
+                let rpc_url = "http://127.0.0.1:8080";
+                let client = reqwest::blocking::Client::new();
+
+                let payload = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "method": "thunder_sendTransaction",
+                    "params": {
+                        "data": hex_data
+                    },
+                    "id": 1
+                });
+
+                match client.post(rpc_url).json(&payload).send() {
+                    Ok(res) => {
+                        let json: serde_json::Value = res.json().unwrap_or_default();
+                        if let Some(result) = json.get("result") {
+                            println!("  ✅ Stake Transaction Submitted Successfully!");
                             println!(
                                 "  tx_hash : {}",
                                 result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or("")
