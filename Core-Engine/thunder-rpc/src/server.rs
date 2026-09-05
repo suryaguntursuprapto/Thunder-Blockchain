@@ -58,6 +58,16 @@ impl JsonRpcResponse {
     }
 }
 
+fn derive_contract_address(creator: &thunder_core::crypto::Address, nonce: u64) -> String {
+    let mut data = Vec::new();
+    data.extend_from_slice(creator);
+    data.extend_from_slice(&nonce.to_le_bytes());
+    let hash = thunder_core::crypto::hash_sha256(&data);
+    let mut addr = [0u8; 20];
+    addr.copy_from_slice(&hash[0..20]);
+    thunder_core::crypto::address_to_hex(&addr)
+}
+
 // ── RPC Context (Infura Foundation) ────────────────────────────────────────
 
 /// Shared state context injected into the RPC Server.
@@ -125,6 +135,49 @@ impl RpcHandler {
                     request.id,
                     serde_json::json!({ "address": address_str, "balance": balance.to_string() }),
                 )
+            }
+
+            "thunder_getAccount" => {
+                let address_str = request
+                    .params
+                    .get("address")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0x0");
+
+                if let Ok(addr) = thunder_core::crypto::address_from_hex(address_str) {
+                    let account = context
+                        .node
+                        .read()
+                        .unwrap()
+                        .state
+                        .read()
+                        .unwrap()
+                        .get_account(&addr);
+                    
+                    let is_contract = !account.code.is_empty();
+                    
+                    JsonRpcResponse::success(
+                        request.id,
+                        serde_json::json!({
+                            "address": address_str,
+                            "balance": account.balance.to_string(),
+                            "nonce": account.nonce,
+                            "is_contract": is_contract,
+                            "code_length": account.code.len()
+                        }),
+                    )
+                } else {
+                    JsonRpcResponse::success(
+                        request.id,
+                        serde_json::json!({
+                            "address": address_str,
+                            "balance": "0",
+                            "nonce": 0,
+                            "is_contract": false,
+                            "code_length": 0
+                        }),
+                    )
+                }
             }
 
             "thunder_getNonce" => {
@@ -308,7 +361,14 @@ impl RpcHandler {
                             "value": tx.value,
                             "gas_limit": tx.gas_limit,
                             "gas_price": tx.gas_price,
-                            "kind": format!("{:?}", tx.kind)
+                                                        "kind": match tx.kind {
+                                thunder_core::transaction::TransactionKind::Transfer => "Transfer".to_string(),
+                                thunder_core::transaction::TransactionKind::ContractDeploy => "ContractDeploy".to_string(),
+                                thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
+                                thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
+                                thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
+                            },
+                            "contract_address": if tx.kind == thunder_core::transaction::TransactionKind::ContractDeploy { Some(derive_contract_address(&tx.from, tx.nonce)) } else { None }
                         })
                     })
                     .collect();
@@ -339,7 +399,14 @@ impl RpcHandler {
                             "value": tx.value,
                             "gas_limit": tx.gas_limit,
                             "gas_price": tx.gas_price,
-                            "kind": format!("{:?}", tx.kind),
+                                                        "kind": match tx.kind {
+                                thunder_core::transaction::TransactionKind::Transfer => "Transfer".to_string(),
+                                thunder_core::transaction::TransactionKind::ContractDeploy => "ContractDeploy".to_string(),
+                                thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
+                                thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
+                                thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
+                            },
+                            "contract_address": if tx.kind == thunder_core::transaction::TransactionKind::ContractDeploy { Some(derive_contract_address(&tx.from, tx.nonce)) } else { None },
                             "time": 0,
                             "timestamp": block.header.timestamp
                         })
@@ -412,7 +479,14 @@ impl RpcHandler {
                         "value": tx.value,
                         "gas_limit": tx.gas_limit,
                         "gas_price": tx.gas_price,
-                        "kind": format!("{:?}", tx.kind),
+                                                    "kind": match tx.kind {
+                                thunder_core::transaction::TransactionKind::Transfer => "Transfer".to_string(),
+                                thunder_core::transaction::TransactionKind::ContractDeploy => "ContractDeploy".to_string(),
+                                thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
+                                thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
+                                thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
+                            },
+                            "contract_address": if tx.kind == thunder_core::transaction::TransactionKind::ContractDeploy { Some(derive_contract_address(&tx.from, tx.nonce)) } else { None },
                         "time": 0
                     });
 
@@ -460,8 +534,14 @@ impl RpcHandler {
                     for tx in block.transactions.iter().rev() {
                         let from_hex = thunder_core::crypto::address_to_hex(&tx.from);
                         let to_hex = thunder_core::crypto::address_to_hex(&tx.to);
+                        
+                        let contract_addr = if tx.kind == thunder_core::transaction::TransactionKind::ContractDeploy {
+                            Some(derive_contract_address(&tx.from, tx.nonce))
+                        } else {
+                            None
+                        };
 
-                        if from_hex == address_str || to_hex == address_str {
+                        if from_hex == address_str || to_hex == address_str || (contract_addr.is_some() && contract_addr.as_ref().unwrap() == address_str) {
                             txs.push(serde_json::json!({
                                 "hash": format!("0x{}", thunder_core::crypto::hash_to_hex(&tx.hash())),
                                 "from": from_hex,
@@ -469,7 +549,14 @@ impl RpcHandler {
                                 "value": tx.value,
                                 "gas_limit": tx.gas_limit,
                                 "gas_price": tx.gas_price,
-                                "kind": format!("{:?}", tx.kind),
+                                                            "kind": match tx.kind {
+                                thunder_core::transaction::TransactionKind::Transfer => "Transfer".to_string(),
+                                thunder_core::transaction::TransactionKind::ContractDeploy => "ContractDeploy".to_string(),
+                                thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
+                                thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
+                                thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
+                            },
+                            "contract_address": contract_addr,
                                 "time": 0,
                                 "timestamp": block.header.timestamp,
                                 "block_height": block.header.height

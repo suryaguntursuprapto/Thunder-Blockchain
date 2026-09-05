@@ -122,6 +122,25 @@ enum TxCommands {
         #[arg(short, long, default_value_t = 21000)]
         gas_limit: u64,
     },
+    /// Deploy a compiled contract.
+    Deploy {
+        /// Path to the .ths compiled file or source file.
+        #[arg(short, long)]
+        file: String,
+        #[arg(short, long, default_value_t = 50000)]
+        gas_limit: u64,
+    },
+    /// Call an existing contract.
+    Call {
+        #[arg(short, long)]
+        to: String,
+        #[arg(short, long)]
+        function: String,
+        #[arg(short, long, default_value_t = 0)]
+        amount: u64,
+        #[arg(short, long, default_value_t = 21000)]
+        gas_limit: u64,
+    },
 }
 
 // ── Contract Subcommands ───────────────────────────────────────────────────
@@ -775,7 +794,7 @@ fn main() {
                     .subsec_nanos() as u64;
                     
                 let mut tx = thunder_core::transaction::Transaction::new_unstake(
-                    1, 
+                    100, 
                     unique_nonce,
                     key_pair.address(),
                     gas_limit,
@@ -813,6 +832,90 @@ fn main() {
                         }
                     }
                     Err(e) => println!("  ❌ Failed to connect to node: {}", e),
+                }
+            }
+            TxCommands::Deploy { file, gas_limit } => {
+                println!("  To authenticate, please provide your Wallet Secret Key.");
+                use std::io::{self, Write};
+                print!("  [🔑] Enter Secret Key (Hex): ");
+                io::stdout().flush().unwrap();
+                let mut secret_input = String::new();
+                io::stdin().read_line(&mut secret_input).unwrap();
+                let secret_bytes = hex::decode(secret_input.trim()).unwrap();
+                let mut secret_array = [0u8; 32];
+                secret_array.copy_from_slice(&secret_bytes);
+                let key_pair = thunder_core::crypto::KeyPair::from_secret_bytes(&secret_array);
+                
+                let source = std::fs::read_to_string(&file).expect("Could not read file");
+                let compiled = compile_source(&source).expect("Compilation failed");
+                let bytecode = bincode::serialize(&compiled).expect("Failed to serialize contract");
+                
+                let unique_nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos() as u64;
+                let mut tx = thunder_core::transaction::Transaction::new_deploy(
+                    100, unique_nonce, key_pair.address(), bytecode, gas_limit, 1
+                );
+                tx.sign(&key_pair);
+                
+                let hex_data = hex::encode(bincode::serialize(&tx).unwrap());
+                let payload = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "method": "thunder_sendTransaction",
+                    "params": { "data": hex_data },
+                    "id": 1
+                });
+                let client = reqwest::blocking::Client::new();
+                match client.post("http://127.0.0.1:8080").json(&payload).send() {
+                    Ok(res) => {
+                        let json: serde_json::Value = res.json().unwrap_or_default();
+                        if let Some(result) = json.get("result") {
+                            println!("  ✅ Contract Deploy Submitted Successfully!");
+                            println!("  tx_hash : {}", result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or(""));
+                        } else {
+                            println!("  ❌ RPC Error: {:?}", json.get("error"));
+                        }
+                    }
+                    Err(e) => println!("  ❌ Connection failed: {}", e),
+                }
+            },
+            TxCommands::Call { to, function, amount, gas_limit } => {
+                println!("\n  ⚡ Initiating Contract Call Transaction...");
+                println!("  To authenticate, please provide your Wallet Secret Key.");
+                use std::io::{self, Write};
+                print!("  [🔑] Enter Secret Key (Hex): ");
+                io::stdout().flush().unwrap();
+                let mut secret_input = String::new();
+                io::stdin().read_line(&mut secret_input).unwrap();
+                let secret_bytes = hex::decode(secret_input.trim()).unwrap();
+                let mut secret_array = [0u8; 32];
+                secret_array.copy_from_slice(&secret_bytes);
+                let key_pair = thunder_core::crypto::KeyPair::from_secret_bytes(&secret_array);
+                
+                let to_addr = thunder_core::crypto::address_from_hex(&to).expect("Invalid to address");
+                let unique_nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos() as u64;
+                let mut tx = thunder_core::transaction::Transaction::new_call(
+                    100, unique_nonce, key_pair.address(), to_addr, amount, function.into_bytes(), gas_limit, 1
+                );
+                tx.sign(&key_pair);
+                
+                let hex_data = hex::encode(bincode::serialize(&tx).unwrap());
+                let payload = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "method": "thunder_sendTransaction",
+                    "params": { "data": hex_data },
+                    "id": 1
+                });
+                let client = reqwest::blocking::Client::new();
+                match client.post("http://127.0.0.1:8080").json(&payload).send() {
+                    Ok(res) => {
+                        let json: serde_json::Value = res.json().unwrap_or_default();
+                        if let Some(result) = json.get("result") {
+                            println!("  ✅ Contract Call Submitted Successfully!");
+                            println!("  tx_hash : {}", result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or(""));
+                        } else {
+                            println!("  ❌ RPC Error: {:?}", json.get("error"));
+                        }
+                    }
+                    Err(e) => println!("  ❌ Connection failed: {}", e),
                 }
             }
         },
