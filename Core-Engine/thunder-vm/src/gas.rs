@@ -38,7 +38,7 @@ pub fn gas_cost(opcode: OpCode) -> u64 {
         OpCode::SStore => 5_000,
 
         // Blockchain context — moderate.
-        OpCode::Caller | OpCode::Timestamp | OpCode::BlockHeight | OpCode::SelfAddress => 2,
+        OpCode::Caller | OpCode::Timestamp | OpCode::BlockHeight | OpCode::SelfAddress | OpCode::CallValue => 2,
         OpCode::Balance => 100,
         OpCode::Transfer => 9_000,
 

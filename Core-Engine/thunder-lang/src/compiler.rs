@@ -12,18 +12,7 @@ use crate::ast::*;
 
 use serde::{Serialize, Deserialize};
 
-/// Compiler output: a list of instructions plus metadata.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompiledContract {
-    /// The contract name.
-    pub name: String,
-    /// The compiled bytecode (list of instructions).
-    pub instructions: Vec<Instruction>,
-    /// Function name → instruction index (entry point).
-    pub function_table: HashMap<String, usize>,
-    /// State variable name → storage slot index.
-    pub state_slots: HashMap<String, u64>,
-}
+pub use thunder_vm::CompiledContract;
 
 /// ThunderScript → Thunder VM bytecode compiler.
 pub struct Compiler {
@@ -370,6 +359,18 @@ impl Compiler {
                     "self_address" => {
                         self.emit(Instruction::new(OpCode::SelfAddress));
                     }
+                    "value" => {
+                        self.emit(Instruction::new(OpCode::CallValue));
+                    }
+                    "transfer" => {
+                        if args.len() == 2 {
+                            self.compile_expression(&args[0])?;
+                            self.compile_expression(&args[1])?;
+                            self.emit(Instruction::new(OpCode::Transfer));
+                        } else {
+                            return Err(CompileError::InvalidBuiltinCall);
+                        }
+                    }
                     "hash" => {
                         if let Some(arg) = args.first() {
                             self.compile_expression(arg)?;
@@ -472,6 +473,9 @@ pub enum CompileError {
 
     #[error("undefined state variable: {0}")]
     UndefinedStateVar(String),
+
+    #[error("invalid builtin call")]
+    InvalidBuiltinCall,
 
     #[error("compilation error: {0}")]
     General(String),

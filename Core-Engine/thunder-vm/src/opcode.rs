@@ -99,6 +99,8 @@ pub enum OpCode {
     BlockHeight = 0x74,
     /// Push the contract's own address.
     SelfAddress = 0x75,
+    /// Push the value (coins) sent with this transaction.
+    CallValue = 0x76,
 
     // ── Data & Cryptography ────────────────────────────────────────────
     /// Push a byte array into linear memory, pushes offset + length.
@@ -166,6 +168,7 @@ impl OpCode {
             0x73 => Some(Self::Timestamp),
             0x74 => Some(Self::BlockHeight),
             0x75 => Some(Self::SelfAddress),
+            0x76 => Some(Self::CallValue),
 
             0x80 => Some(Self::PushBytes),
             0x81 => Some(Self::Hash),

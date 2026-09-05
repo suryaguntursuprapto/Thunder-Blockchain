@@ -7,7 +7,9 @@
 
 use std::collections::HashMap;
 
-use thunder_core::crypto::{self, Address};
+use sha2::{Digest, Sha256};
+
+pub type Address = [u8; 20];
 
 use crate::gas::GasMeter;
 use crate::opcode::{Instruction, OpCode};
@@ -116,6 +118,11 @@ impl ThunderVm {
             balances,
             memory: Vec::new(),
         }
+    }
+
+    /// Set the instruction pointer (for entering a specific function).
+    pub fn set_pc(&mut self, pc: usize) {
+        self.pc = pc;
     }
 
     /// Run the VM until it halts, reverts, or runs out of gas.
@@ -348,6 +355,9 @@ impl ThunderVm {
                 let val = u64::from_le_bytes(self.ctx.contract_address[..8].try_into().unwrap());
                 self.stack.push(val);
             }
+            OpCode::CallValue => {
+                self.stack.push(self.ctx.value);
+            }
 
             // ── Data & Cryptography ────────────────────────────────────
             OpCode::PushBytes => {
@@ -359,7 +369,9 @@ impl ThunderVm {
             }
             OpCode::Hash => {
                 let val = self.pop()?;
-                let hash = crypto::hash_sha256(&val.to_le_bytes());
+                let mut hasher = Sha256::new();
+                hasher.update(val.to_le_bytes());
+                let hash = hasher.finalize();
                 let hash_val = u64::from_le_bytes(hash[..8].try_into().unwrap());
                 self.stack.push(hash_val);
             }
@@ -368,7 +380,9 @@ impl ThunderVm {
                 let len = self.pop()? as usize;
                 let ptr = self.pop()? as usize;
                 let bytes = self.read_mem(ptr, len)?;
-                let hash = crypto::hash_sha256(bytes);
+                let mut hasher = Sha256::new();
+                hasher.update(bytes);
+                let hash = hasher.finalize();
                 let hash_val = u64::from_le_bytes(hash[..8].try_into().unwrap());
                 self.stack.push(hash_val);
             }
