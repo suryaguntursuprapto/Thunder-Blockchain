@@ -204,6 +204,7 @@ body::after {
   margin-bottom: 4px;
   background: linear-gradient(to right, #fff, #b894ff);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -1px;
 }
@@ -463,12 +464,14 @@ body::after {
   margin-bottom: 8px;
   background: linear-gradient(to right, #fff, var(--cyan));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .modal-content.error .modal-title {
   background: linear-gradient(to right, #fff, #ff4d4f);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
