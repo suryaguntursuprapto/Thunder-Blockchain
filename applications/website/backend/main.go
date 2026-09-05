@@ -221,15 +221,26 @@ func main() {
 		address := c.Params("address")
 		var balance int64 = 0
 
-		balData, _ := fetchRpc("thunder_getBalance", map[string]interface{}{"address": address})
-		if balData != nil && balData["balance"] != nil {
+		accData, _ := fetchRpc("thunder_getAccount", map[string]interface{}{"address": address})
+		if accData != nil && accData["balance"] != nil {
 			// Thunder node returns numbers, but could be parsed as float64 by encoding/json
-			switch v := balData["balance"].(type) {
+			switch v := accData["balance"].(type) {
 			case float64:
 				balance = int64(v)
 			case string:
 				parsed, _ := strconv.ParseInt(v, 10, 64)
 				balance = parsed
+			}
+		}
+
+		var isContract bool = false
+		var codeLength int64 = 0
+		if accData != nil {
+			if v, ok := accData["is_contract"].(bool); ok {
+				isContract = v
+			}
+			if cl, ok := accData["code_length"].(float64); ok {
+				codeLength = int64(cl)
 			}
 		}
 
@@ -239,14 +250,15 @@ func main() {
 			transactions = txData["transactions"].([]interface{})
 		}
 
-		if balance == 0 && len(transactions) == 0 {
+		if balance == 0 && len(transactions) == 0 && !isContract {
 			return c.Status(404).JSON(fiber.Map{"error": "Wallet not found or never used"})
 		}
 
 		return c.JSON(fiber.Map{
 			"address":      address,
 			"balance":      balance,
-			"type":         "Wallet",
+			"isContract":   isContract,
+			"codeLength":   codeLength,
 			"transactions": transactions,
 		})
 	})
@@ -352,6 +364,85 @@ func main() {
 		output, err := cmd.CombinedOutput()
 		if err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Failed to execute tx unstake", "details": string(output)})
+		}
+
+		outStr := string(output)
+		if strings.Contains(outStr, "❌") || strings.Contains(outStr, "Error") || strings.Contains(outStr, "error") {
+			return c.Status(400).JSON(fiber.Map{"error": outStr})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"output":  outStr,
+		})
+	})
+
+	// /api/tx/deploy
+	app.Post("/api/tx/deploy", func(c *fiber.Ctx) error {
+		type DeployReq struct {
+			PrivateKey string `json:"private_key"`
+			File       string `json:"file"`
+		}
+		var req DeployReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+		
+		pkHex := req.PrivateKey
+		if strings.HasPrefix(pkHex, "0x") {
+			pkHex = pkHex[2:]
+		}
+
+		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "tx", "deploy", "--file", req.File)
+		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network/Core-Engine"
+		cmd.Stdin = bytes.NewBufferString(pkHex + "\n")
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to execute tx deploy", "details": string(output)})
+		}
+
+		outStr := string(output)
+		if strings.Contains(outStr, "❌") || strings.Contains(outStr, "Error") || strings.Contains(outStr, "error") {
+			return c.Status(400).JSON(fiber.Map{"error": outStr})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"output":  outStr,
+		})
+	})
+
+	// /api/tx/call
+	app.Post("/api/tx/call", func(c *fiber.Ctx) error {
+		type CallReq struct {
+			PrivateKey string `json:"private_key"`
+			To         string `json:"to"`
+			Function   string `json:"function"`
+			Amount     string `json:"amount"`
+		}
+		var req CallReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+		
+		pkHex := req.PrivateKey
+		if strings.HasPrefix(pkHex, "0x") {
+			pkHex = pkHex[2:]
+		}
+
+		amt := req.Amount
+		if amt == "" {
+			amt = "0"
+		}
+
+		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "tx", "call", "--to", req.To, "--function", req.Function, "--amount", amt)
+		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network/Core-Engine"
+		cmd.Stdin = bytes.NewBufferString(pkHex + "\n")
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to execute tx call", "details": string(output)})
 		}
 
 		outStr := string(output)
