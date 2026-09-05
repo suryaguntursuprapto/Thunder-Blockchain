@@ -1,74 +1,97 @@
 import { useState } from 'react'
-import { ethers } from 'ethers'
-import { Rocket, Download, KeyRound } from 'lucide-react'
+
+import { Rocket, Download, KeyRound, Copy, Check } from 'lucide-react'
 import './index.css'
 
 interface OnboardingProps {
   onComplete: (privateKey: string, mnemonic: string, address: string) => void;
+  onCancel?: () => void;
 }
 
-export default function Onboarding({ onComplete }: OnboardingProps) {
+export default function Onboarding({ onComplete, onCancel }: OnboardingProps) {
   const [view, setView] = useState<'home' | 'create' | 'import'>('home')
   const [mnemonicInput, setMnemonicInput] = useState('')
   const [generatedMnemonic, setGeneratedMnemonic] = useState('')
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
 
-  const handleCreate = () => {
+  const handleCopy = () => {
+    navigator.clipboard.writeText(generatedMnemonic)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleCreate = async () => {
     try {
-      const wallet = ethers.Wallet.createRandom()
-      if (wallet.mnemonic) {
-        setGeneratedMnemonic(wallet.mnemonic.phrase)
+      const res = await fetch('http://127.0.0.1:5050/api/wallet/generate-seed', { method: 'POST' })
+      const data = await res.json()
+      if (data.mnemonic) {
+        setGeneratedMnemonic(data.mnemonic)
         setView('create')
+      } else {
+        setError('Failed to generate seed')
       }
     } catch (err) {
       console.error(err)
-      setError('Failed to create wallet')
+      setError('Failed to generate wallet')
     }
   }
 
   const handleConfirmCreate = async () => {
+    setIsLoading(true)
+    setError('')
     try {
-      const wallet = ethers.Wallet.fromPhrase(generatedMnemonic)
-      const res = await fetch('http://localhost:5050/api/wallet/derive-address', {
+      const res = await fetch('http://127.0.0.1:5050/api/wallet/derive-address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ private_key: wallet.privateKey })
+        body: JSON.stringify({ seed: generatedMnemonic, index: 0 })
       })
       const data = await res.json()
-      if (data.address) {
-        onComplete(wallet.privateKey, generatedMnemonic, data.address)
+      if (data.address && data.private_key) {
+        onComplete(data.private_key, generatedMnemonic, data.address)
       } else {
-        setError('Failed to derive address')
+        setError(data.error || 'Failed to derive address')
       }
     } catch (err) {
       console.error(err)
+      setError('Network error: Unable to reach backend')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleImport = async () => {
     try {
-      const wallet = ethers.Wallet.fromPhrase(mnemonicInput.trim())
-      const res = await fetch('http://localhost:5050/api/wallet/derive-address', {
+      const res = await fetch('http://127.0.0.1:5050/api/wallet/derive-address', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ private_key: wallet.privateKey })
+        body: JSON.stringify({ seed: mnemonicInput.trim(), index: 0 })
       })
       const data = await res.json()
-      if (data.address) {
-        onComplete(wallet.privateKey, mnemonicInput.trim(), data.address)
+      if (data.address && data.private_key) {
+        onComplete(data.private_key, mnemonicInput.trim(), data.address)
       } else {
-        setError('Invalid Seed Phrase')
+        setError(data.error || 'Invalid Seed Phrase')
       }
     } catch (err) {
       console.error(err)
-      setError('Invalid Seed Phrase')
+      setError('Network error: Unable to reach backend')
     }
   }
 
   return (
-    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', padding: '24px' }}>
+    <div className="app-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '32px 24px', overflowY: 'auto', position: 'relative' }}>
+      {onCancel && (
+        <button 
+          onClick={onCancel}
+          style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+        >
+          ✕
+        </button>
+      )}
       <img src="/logo.png" alt="Thunder Logo" style={{ width: 80, height: 80, marginBottom: 24, filter: 'drop-shadow(0 0 15px rgba(139, 92, 246, 0.6))' }} />
-      <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '12px', background: 'linear-gradient(to right, #fff, #00e5ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>Thunder Wallet</h2>
+      <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '12px', background: 'linear-gradient(to right, #fff, #00e5ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px', textAlign: 'center' }}>Thunder Wallet</h2>
       
       {view === 'home' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%', marginTop: '30px' }}>
@@ -84,32 +107,39 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
       {view === 'create' && (
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '20px', fontSize: '14px' }}>
-            Write down these 12 words in order and keep them safe.
-          </p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', marginBottom: '16px' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: 0, textAlign: 'left' }}>
+              Write down these 12 words:
+            </p>
+            <button onClick={handleCopy} style={{ background: 'rgba(0, 229, 255, 0.1)', border: '1px solid rgba(0, 229, 255, 0.2)', color: 'var(--cyan)', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', padding: '4px 10px', borderRadius: '6px', fontWeight: 600 }}>
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: '1fr 1fr', 
-            gap: '12px', 
+            gridTemplateColumns: 'repeat(3, 1fr)', 
+            gap: '8px', 
             background: 'var(--bg-card)', 
-            padding: '20px', 
+            padding: '16px', 
             borderRadius: '16px',
             border: '1px solid var(--border-color)',
             boxShadow: 'inset 0 0 20px rgba(0, 0, 0, 0.5)',
             width: '100%',
-            marginBottom: '24px'
+            marginBottom: '16px'
           }}>
             {generatedMnemonic.split(' ').map((word, i) => (
-              <div key={i} style={{ display: 'flex', gap: '8px', fontSize: '14px', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: '8px' }}>
-                <span style={{ color: 'var(--cyan)', width: '20px', fontWeight: 'bold' }}>{i + 1}.</span>
-                <span style={{ color: 'white' }}>{word}</span>
+              <div key={i} style={{ display: 'flex', gap: '4px', fontSize: '13px', background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '8px' }}>
+                <span style={{ color: 'var(--cyan)', fontWeight: 'bold' }}>{i + 1}.</span>
+                <span style={{ color: 'white', overflow: 'hidden', textOverflow: 'ellipsis' }}>{word}</span>
               </div>
             ))}
           </div>
-          <button className="btn-primary" style={{ width: '100%' }} onClick={handleConfirmCreate}>
-            I have saved it
+          {error && <p style={{ color: '#ff4d4f', fontSize: '13px', marginBottom: '16px', fontWeight: 500 }}>{error}</p>}
+          <button className="btn-primary" style={{ width: '100%' }} onClick={handleConfirmCreate} disabled={isLoading}>
+            {isLoading ? 'Creating Wallet...' : 'I have saved it'}
           </button>
-          <button className="btn-outline" style={{ width: '100%', marginTop: '12px', border: 'none' }} onClick={() => setView('home')}>
+          <button className="btn-outline" style={{ width: '100%', marginTop: '12px', border: 'none' }} onClick={() => setView('home')} disabled={isLoading}>
             Back
           </button>
         </div>

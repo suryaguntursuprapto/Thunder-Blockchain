@@ -86,11 +86,11 @@ function Navbar() {
           <span>Thunder</span>
         </Link>
         <div className="nav-links">
-          <Link to="/docs">Documentation</Link>
           <a href="/#features">Features</a>
           <a href="/#ecosystem">Ecosystem</a>
           <a href="/#comparison">Comparison</a>
-          <Link to="/thunderscan/testnet">ThunderScan</Link>
+          <Link to="/docs">Documentation</Link>
+          <Link to="/faucet">Faucet</Link>
         </div>
         <div className="nav-cta">
           {walletAddress ? (
@@ -98,8 +98,8 @@ function Navbar() {
               {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
             </span>
           ) : (
-            <button 
-              onClick={connectWallet} 
+            <button
+              onClick={connectWallet}
               disabled={isConnecting}
               className="btn btn-outline btn-sm"
               style={{ cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -415,38 +415,53 @@ function Docs() {
   return (
     <div style={{ paddingTop: 100, minHeight: '80vh', paddingBottom: 100 }}>
       <div className="container">
-        <h1 className="heading-xl">ThunderScript <span className="text-gradient">Documentation</span></h1>
+        <h1 className="heading-xl">Thunder Network <span className="text-gradient">Progress</span></h1>
         <p className="text-body" style={{ marginTop: 24, fontSize: '1.15rem', maxWidth: 700 }}>
-          Welcome to the official developer portal for Thunder Blockchain. Learn how to scaffold, deploy, and interact with smart contracts natively.
+          Welcome to the official developer portal for Thunder Blockchain. Here is a summary of the ecosystem components that have been built and deployed so far.
         </p>
 
         <div className="docs-grid" style={{ marginTop: 56, display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 3fr', gap: 32 }}>
           <div className="glass-card" style={{ padding: 24 }}>
-            <h3 className="heading-md" style={{ marginBottom: 16, fontSize: '1rem' }}>Table of Contents</h3>
+            <h3 className="heading-md" style={{ marginBottom: 16, fontSize: '1rem' }}>Ecosystem Status</h3>
             <ul style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <li><a href="#" className="text-gradient" style={{ fontWeight: 600, fontSize: '0.88rem' }}>1. Intro to ThunderScript</a></li>
-              <li><a href="#" style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>2. Creating a Wallet</a></li>
-              <li><a href="#" style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>3. Writing your First Contract</a></li>
-              <li><a href="#" style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>4. Compiling via CLI</a></li>
-              <li><a href="#" style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>5. Deploying to Testnet</a></li>
+              <li><span className="text-gradient" style={{ fontWeight: 600, fontSize: '0.88rem' }}>1. Core Blockchain</span></li>
+              <li><span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>2. JSON-RPC Server</span></li>
+              <li><span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>3. Wallet Extension</span></li>
+              <li><span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>4. ThunderScan Explorer</span></li>
+              <li><span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>5. Testnet Faucet</span></li>
             </ul>
           </div>
           <div className="glass-card" style={{ padding: 32 }}>
-            <h2 style={{ marginBottom: 12 }}>1. Intro to ThunderScript</h2>
-            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: '0.95rem' }}>
-              ThunderScript is a stack-based smart contract language optimized specifically for <code style={{ color: 'var(--cyan)' }}>ThunderVM</code>. It forces O(1) memory mappings to prevent infinite loops and recursive depth attacks.
+            <h2 style={{ marginBottom: 12 }}>Current Development Status</h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.7, fontSize: '0.95rem', marginBottom: 24 }}>
+              The Thunder Network is rapidly evolving. We have successfully established the foundational layer, developer APIs, and end-user products.
             </p>
-            <h3 style={{ marginTop: 24, marginBottom: 8 }}>Example: Setting a basic String</h3>
-            <div style={{ background: 'var(--bg-primary)', padding: 16, borderRadius: 10, marginTop: 8, border: '1px solid var(--glass-border)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', color: 'var(--cyan)' }}>
-              fn init() {'{'}<br />
-              &nbsp;&nbsp;PStore "MyFirstContract"<br />
-              {'}'}
-            </div>
-            <h3 style={{ marginTop: 24, marginBottom: 8 }}>Executing via CLI</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Use the built-in CLI debugging toolbox to compile and dry-run without spending gas.</p>
-            <div style={{ background: 'var(--bg-primary)', padding: 16, borderRadius: 10, marginTop: 8, border: '1px solid var(--glass-border)', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', color: 'var(--purple)' }}>
-              $ cargo run -p thunder-cli -- contract run examples/token.thunder
-            </div>
+
+            <h3 style={{ marginTop: 24, marginBottom: 8, color: 'var(--cyan)' }}>1. Core Blockchain Engine (Rust)</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+              A custom-built Layer 1 Node written purely in Rust. It features built-in transaction signing, block generation, cryptography (Ed25519), and a Genesis block with initial THDR reserves.
+            </p>
+
+            <h3 style={{ marginTop: 24, marginBottom: 8, color: 'var(--cyan)' }}>2. JSON-RPC Server</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+              A high-performance local server running on port 8080 connecting UIs to the blockchain state. It handles methods like <code>thunder_accounts</code>, <code>thunder_getBalance</code>, and <code>thunder_requestFaucet</code>.
+            </p>
+
+            <h3 style={{ marginTop: 24, marginBottom: 8, color: 'var(--cyan)' }}>3. Thunder Wallet Extension</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+              A browser extension React app providing a clean, multi-account wallet interface. It securely manages seed phrases, derives keys, allows account switching, and handles token transfers and staking.
+            </p>
+
+            <h3 style={{ marginTop: 24, marginBottom: 8, color: 'var(--cyan)' }}>4. ThunderScan Explorer</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+              A real-time block explorer built into our web dashboard. It parses blocks, views transaction details, inspects wallet addresses, and provides transparency into the network's state.
+            </p>
+
+            <h3 style={{ marginTop: 24, marginBottom: 8, color: 'var(--cyan)' }}>5. Testnet Faucet</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 16 }}>
+              A futuristic, premium web interface for developers to request free testnet THDR tokens directly from the genesis reserve to test smart contracts and dApps.
+            </p>
+
           </div>
         </div>
       </div>

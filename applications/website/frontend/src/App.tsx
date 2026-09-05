@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import './App.css'
 import { Landing, Docs, ComingSoon, Navbar, Footer } from './pages/Landing'
+import { Faucet } from './pages/Faucet'
 import { ThunderScanTestnet, ThunderScanMainnet, ScanNavbar, ScanFooter } from './pages/Explorer'
 
 // ── Main App ─────────────────────────────────────────────────── */
@@ -10,6 +11,7 @@ function App() {
       <Routes>
         <Route path="/" element={<><Navbar /><Landing /><Footer /></>} />
         <Route path="/docs" element={<><Navbar /><Docs /><Footer /></>} />
+        <Route path="/faucet" element={<><Navbar /><Faucet /><Footer /></>} />
         <Route path="/coming-soon" element={<><Navbar /><ComingSoon /><Footer /></>} />
 
         <Route path="/thunderscan/testnet" element={<><ScanNavbar /><ThunderScanTestnet /><ScanFooter /></>} />

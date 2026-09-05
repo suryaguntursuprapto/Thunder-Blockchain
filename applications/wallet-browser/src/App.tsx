@@ -4,7 +4,7 @@ import Onboarding from './Onboarding'
 import './index.css'
 
 type Tab = 'tokens' | 'nfts' | 'activity'
-type View = 'home' | 'send' | 'receive' | 'stake' | 'mint' | 'token_details'
+type View = 'home' | 'send' | 'receive' | 'stake' | 'mint' | 'token_details' | 'onboarding'
 
 const NETWORKS = [
   { id: 'mainnet', name: 'Thunder Mainnet', rpcUrl: 'https://rpc.thunder-network.com', symbol: 'THDR' },
@@ -17,7 +17,10 @@ interface ThunderWallet {
 }
 
 function App() {
-  const [wallet, setWallet] = useState<ThunderWallet | null>(null)
+  const [wallets, setWallets] = useState<ThunderWallet[]>([])
+  const [activeWalletIndex, setActiveWalletIndex] = useState(0)
+  const wallet = wallets[activeWalletIndex] || null
+
   const [activeTab, setActiveTab] = useState<Tab>('tokens')
   const [view, setView] = useState<View>('home')
 
@@ -28,27 +31,26 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [transactions, setTransactions] = useState<any[]>([])
   const [isLoadingActivity, setIsLoadingActivity] = useState(false)
+  const [stakedBalance, setStakedBalance] = useState('0')
   const [modal, setModal] = useState<{ show: boolean, type: 'success' | 'error', message: string }>({ show: false, type: 'success', message: '' })
 
   useEffect(() => {
-    // Check if wallet exists in storage
-    const loadWallet = async () => {
+    const loadWallets = async () => {
       try {
-        const storedKey = localStorage.getItem('thunder_private_key')
-        const storedAddress = localStorage.getItem('thunder_address')
-        if (storedKey && storedAddress) {
-          setWallet({ privateKey: storedKey, address: storedAddress })
-        } else if (storedKey) {
-          // Backward compatibility: fetch address if only pk exists
-          const res = await fetch('http://localhost:5050/api/wallet/derive-address', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ private_key: storedKey })
-          })
-          const data = await res.json()
-          if (data.address) {
-            localStorage.setItem('thunder_address', data.address)
-            setWallet({ privateKey: storedKey, address: data.address })
+        const storedWallets = localStorage.getItem('thunder_wallets')
+        if (storedWallets) {
+          const parsed = JSON.parse(storedWallets)
+          setWallets(parsed)
+          const activeIdx = localStorage.getItem('thunder_active_wallet_index')
+          if (activeIdx) setActiveWalletIndex(parseInt(activeIdx))
+        } else {
+          // Backward compatibility
+          const storedKey = localStorage.getItem('thunder_private_key')
+          const storedAddress = localStorage.getItem('thunder_address')
+          if (storedKey && storedAddress) {
+            setWallets([{ privateKey: storedKey, address: storedAddress }])
+            setActiveWalletIndex(0)
+            localStorage.setItem('thunder_wallets', JSON.stringify([{ privateKey: storedKey, address: storedAddress }]))
           }
         }
       } catch (err) {
@@ -57,21 +59,37 @@ function App() {
         setIsLoading(false)
       }
     }
-    loadWallet()
+    loadWallets()
   }, [])
 
   const handleOnboardingComplete = (privateKey: string, mnemonic: string, address: string) => {
-    localStorage.setItem('thunder_private_key', privateKey)
+    const newWallet = { privateKey, address }
+    const updatedWallets = [...wallets, newWallet]
+    setWallets(updatedWallets)
+    const newIndex = updatedWallets.length - 1
+    setActiveWalletIndex(newIndex)
+    
+    localStorage.setItem('thunder_wallets', JSON.stringify(updatedWallets))
+    localStorage.setItem('thunder_active_wallet_index', newIndex.toString())
     localStorage.setItem('thunder_mnemonic', mnemonic)
-    localStorage.setItem('thunder_address', address)
-
-    // Also save to chrome storage if in extension context
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set({ thunder_private_key: privateKey, thunder_address: address })
+    
+    if (view === 'onboarding') {
+      setView('home')
     }
-
-    setWallet({ privateKey, address })
   }
+
+  const handleAddAccount = async () => {
+    setShowAccountDropdown(false)
+    setView('onboarding')
+  }
+
+  const handleSwitchAccount = (index: number) => {
+    setActiveWalletIndex(index)
+    localStorage.setItem('thunder_active_wallet_index', index.toString())
+    setShowAccountDropdown(false)
+  }
+
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false)
 
   // Fetch Live Balance
   useEffect(() => {
@@ -97,8 +115,30 @@ function App() {
           } else {
             setBalance('0.00')
           }
+          
+          const valRes = await fetch(network.rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'thunder_getValidators',
+              params: [],
+              id: 2
+            })
+          })
+          const valData = await valRes.json()
+          let stakedAmount = '0'
+          if (valData.result && valData.result.validators) {
+            const myValidator = valData.result.validators.find((v: any) => v.address.toLowerCase() === wallet.address.toLowerCase())
+            if (myValidator) {
+              stakedAmount = (Number(myValidator.stake) * 1e-9).toString()
+            }
+          }
+          setStakedBalance(stakedAmount)
+
         } else {
           setBalance('0.00')
+          setStakedBalance('0')
         }
       } catch (err) {
         console.error('Failed to fetch balance', err)
@@ -152,6 +192,7 @@ function App() {
 
   // Stake Form State
   const [stakeAmount, setStakeAmount] = useState('')
+  const [stakeDuration, setStakeDuration] = useState<number>(0) // 0 = flexible, 30, 60, 90
 
   // Mint Form State
   const [nftName, setNftName] = useState('')
@@ -211,9 +252,10 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          private_key: wallet.privateKey,
-          amount: amountInNano
-        })
+            private_key: wallet.privateKey,
+            amount: amountInNano,
+            duration: stakeDuration
+          })
       });
 
       const data = await response.json()
@@ -229,18 +271,51 @@ function App() {
     }
   }
 
+  const handleUnstake = async () => {
+    if (!wallet) return
+
+    setIsLoading(true)
+    try {
+      const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/unstake`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            private_key: wallet.privateKey,
+          })
+      });
+
+      const data = await response.json()
+      if (data.error) throw new Error(data.error)
+
+      setModal({ show: true, type: 'success', message: data.output || 'Unstaking successful!' })
+      setView('home')
+      setStakedBalance('0')
+    } catch (err: any) {
+      setModal({ show: true, type: 'error', message: err.message || 'Failed to unstake' })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleMint = () => {
     alert(`Minting NFT: ${nftName}...`)
     setView('home')
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('thunder_private_key')
-    localStorage.removeItem('thunder_mnemonic')
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.remove(['thunder_private_key'])
+    if (wallets.length > 1) {
+      const updatedWallets = wallets.filter((_, idx) => idx !== activeWalletIndex)
+      setWallets(updatedWallets)
+      setActiveWalletIndex(0)
+      localStorage.setItem('thunder_wallets', JSON.stringify(updatedWallets))
+      localStorage.setItem('thunder_active_wallet_index', '0')
+    } else {
+      localStorage.removeItem('thunder_wallets')
+      localStorage.removeItem('thunder_active_wallet_index')
+      localStorage.removeItem('thunder_mnemonic')
+      setWallets([])
+      setActiveWalletIndex(0)
     }
-    setWallet(null)
   }
 
   const handleCopyAddress = () => {
@@ -346,7 +421,7 @@ function App() {
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Stake your THDR to secure the network and earn rewards.</p>
           </div>
-          <div className="form-group" style={{ marginBottom: 24 }}>
+          <div className="form-group" style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Amount to Stake</label>
             <input
               type="number"
@@ -355,14 +430,61 @@ function App() {
               onChange={e => setStakeAmount(e.target.value)}
               style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'white', fontSize: '1.2rem' }}
             />
-            <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 8 }}>Balance: 1,024.50 THDR</div>
+            <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 8 }}>Balance: {balance} THDR</div>
           </div>
+          
+          <div className="form-group" style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Locking Period</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              {[
+                { label: 'Flexible', days: 0, apy: '1.5% APY' },
+                { label: '30 Days', days: 30, apy: '3.5% APY' },
+                { label: '60 Days', days: 60, apy: '6.0% APY' },
+                { label: '90 Days', days: 90, apy: '9.0% APY' }
+              ].map(opt => (
+                <div 
+                  key={opt.days}
+                  onClick={() => setStakeDuration(opt.days)}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${stakeDuration === opt.days ? 'var(--cyan)' : 'var(--border)'}`,
+                    background: stakeDuration === opt.days ? 'rgba(0, 229, 255, 0.1)' : 'var(--bg-secondary)',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <div style={{ color: stakeDuration === opt.days ? 'white' : 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem' }}>
+                    {opt.label}
+                  </div>
+                  <div style={{ color: stakeDuration === opt.days ? 'var(--cyan)' : 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
+                    {opt.apy}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <button
             className="btn-outline"
             onClick={handleStake}
-            style={{ width: '100%', padding: '14px', borderRadius: 12, background: 'var(--cyan-dim)', border: '1px solid var(--cyan)', color: 'var(--cyan)', fontWeight: 600, cursor: 'pointer' }}>
+            style={{ width: '100%', padding: '14px', borderRadius: 12, background: 'var(--cyan-dim)', border: '1px solid var(--cyan)', color: 'var(--cyan)', fontWeight: 600, cursor: 'pointer', marginBottom: parseFloat(stakedBalance) > 0 ? 12 : 0 }}>
             Stake Now
           </button>
+
+          {parseFloat(stakedBalance) > 0 && (
+            <div style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-secondary)', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Active Staked Balance</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 600, color: 'white', marginBottom: 16 }}>{stakedBalance} THDR</div>
+              <button
+                className="btn-outline"
+                onClick={handleUnstake}
+                style={{ width: '100%', padding: '10px', borderRadius: 8, background: 'rgba(255, 60, 60, 0.1)', border: '1px solid #ff3c3c', color: '#ff3c3c', fontWeight: 600, cursor: 'pointer' }}>
+                Unstake
+              </button>
+            </div>
+          )}
         </main>
       </div>
     )
@@ -408,37 +530,52 @@ function App() {
   }
 
   if (isLoading) return <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>Loading...</div>
-  if (!wallet) return <Onboarding onComplete={handleOnboardingComplete} />
+  if (!wallet || view === 'onboarding') {
+    return <Onboarding onComplete={handleOnboardingComplete} onCancel={wallet ? () => setView('home') : undefined} />
+  }
 
   const displayAddress = `${wallet.address.substring(0, 6)}...${wallet.address.substring(wallet.address.length - 4)}`
 
   return (
     <div className="app-container" onClick={() => setShowNetworkDropdown(false)}>
       {/* Header */}
-      <header className="header">
-        <div
-          className="network-selector"
-          onClick={(e) => { e.stopPropagation(); setShowNetworkDropdown(!showNetworkDropdown) }}
-        >
-          <div className="network-dot"></div>
-          {network.name}
-          <ChevronDown size={14} style={{ marginLeft: 4 }} />
+      <header className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <div
+            className="network-selector"
+            onClick={(e) => { e.stopPropagation(); setShowAccountDropdown(!showAccountDropdown); setShowNetworkDropdown(false); }}
+            style={{ background: 'rgba(139, 92, 246, 0.1)', borderColor: 'rgba(139, 92, 246, 0.3)', color: '#b894ff' }}
+          >
+            Account {activeWalletIndex + 1}
+            <ChevronDown size={14} style={{ marginLeft: 4 }} />
 
-          {showNetworkDropdown && (
-            <div className="network-dropdown">
-              {NETWORKS.map(net => (
+            {showAccountDropdown && (
+              <div className="network-dropdown" style={{ left: 0, right: 'auto' }}>
+                {wallets.map((w, idx) => (
+                  <div
+                    key={idx}
+                    className="network-item"
+                    onClick={() => handleSwitchAccount(idx)}
+                    style={{ justifyContent: 'space-between' }}
+                  >
+                    <span>Account {idx + 1}</span>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+                      {w.address.substring(0, 4)}...{w.address.substring(w.address.length - 4)}
+                    </span>
+                  </div>
+                ))}
                 <div
-                  key={net.id}
                   className="network-item"
-                  onClick={() => { setNetwork(net); setShowNetworkDropdown(false) }}
+                  onClick={(e) => { e.stopPropagation(); handleAddAccount(); }}
+                  style={{ borderTop: '1px solid rgba(255,255,255,0.1)', color: 'var(--cyan)', justifyContent: 'center' }}
                 >
-                  <div className="network-dot" style={{ backgroundColor: net.id === 'mainnet' ? 'var(--primary-color)' : 'var(--cyan)' }}></div>
-                  {net.name}
+                  + Add Account
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
+
         <div
           className="account-icon"
           onClick={handleLogout}
@@ -466,36 +603,61 @@ function App() {
           </div>
 
           {/* Token Info & Balance */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 32 }}>
-            <div style={{
-              width: 72, height: 72, borderRadius: 24,
-              background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(0, 229, 255, 0.1))',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-              boxShadow: '0 8px 32px rgba(139, 92, 246, 0.15)'
-            }}>
-              <img src="/logo.png" alt="Thunder" style={{ width: 44, height: 44, filter: 'drop-shadow(0 0 8px rgba(139, 92, 246, 0.5))' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', padding: '0 20px', marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: 16,
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(0, 229, 255, 0.1))',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.1)'
+                }}>
+                  <img src="/logo.png" alt="Thunder" style={{ width: 28, height: 28 }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>Thunder</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>THDR</div>
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 18, fontWeight: 600, color: '#fff' }}>{balance}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>$0.00</div>
+              </div>
             </div>
-            <h1 style={{ fontSize: 36, fontWeight: 700, margin: 0, background: 'linear-gradient(to right, #fff, #b894ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-1px' }}>
-              {balance} <span style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-secondary)', WebkitTextFillColor: 'var(--text-secondary)' }}>THDR</span>
-            </h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 15, marginTop: 4, fontWeight: 500 }}>$0.00</p>
-          </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: 16, marginBottom: 32, padding: '0 20px' }}>
-            <button
-              style={{ flex: 1, padding: '14px', borderRadius: 16, background: 'linear-gradient(135deg, var(--primary-color), #a78bfa)', color: '#fff', border: 'none', fontWeight: 600, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 15px var(--primary-glow)' }}
-              onClick={() => setView('send')}
-            >
-              <SendIcon size={18} /> Send
-            </button>
-            <button
-              style={{ flex: 1, padding: '14px', borderRadius: 16, background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', border: '1px solid rgba(255,255,255,0.1)', fontWeight: 600, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s' }}
-              onClick={() => setView('receive')}
-            >
-              <ArrowDownToLine size={18} /> Receive
-            </button>
+            {/* Sparkline Chart (Mock) */}
+            <div style={{ height: 100, width: '100%', marginBottom: 24, position: 'relative' }}>
+              <svg viewBox="0 0 100 40" preserveAspectRatio="none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                <defs>
+                  <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--cyan)" stopOpacity="0.3" />
+                    <stop offset="100%" stopColor="var(--cyan)" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <path d="M0 40 L0 30 Q 10 20 20 25 T 40 15 T 60 20 T 80 5 T 100 10 L100 40 Z" fill="url(#chartGradient)" />
+                <path d="M0 30 Q 10 20 20 25 T 40 15 T 60 20 T 80 5 T 100 10" fill="none" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div style={{ position: 'absolute', top: -10, right: 0, background: 'rgba(0, 229, 255, 0.1)', color: 'var(--cyan)', padding: '4px 8px', borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
+                +12.5%
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                style={{ flex: 1, padding: '12px', borderRadius: 12, background: 'var(--cyan-dim)', color: 'var(--cyan)', border: '1px solid rgba(0, 229, 255, 0.2)', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.2s' }}
+                onClick={() => setView('send')}
+              >
+                <SendIcon size={16} /> Send
+              </button>
+              <button
+                style={{ flex: 1, padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', border: '1px solid rgba(255,255,255,0.1)', fontWeight: 600, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'all 0.2s' }}
+                onClick={() => setView('receive')}
+              >
+                <ArrowDownToLine size={16} /> Receive
+              </button>
+            </div>
           </div>
 
           {/* Activity List */}
@@ -558,8 +720,39 @@ function App() {
           <div className="balance-section">
             <h1 className="balance-amount">{balance} {network.symbol}</h1>
             <p className="balance-usd">$0.00</p>
+            {parseFloat(stakedBalance) > 0 && (
+              <div style={{ marginTop: 8, fontSize: '0.9rem', color: 'var(--cyan)' }}>
+                Staked: {stakedBalance} {network.symbol}
+              </div>
+            )}
             <div style={{ marginTop: 10, opacity: 0.7, fontSize: 12, background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: 12, display: 'inline-block' }}>
               {displayAddress}
+            </div>
+
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center' }}>
+              <div
+                className="network-selector"
+                onClick={(e) => { e.stopPropagation(); setShowNetworkDropdown(!showNetworkDropdown); setShowAccountDropdown(false); }}
+              >
+                <div className="network-dot"></div>
+                {network.name}
+                <ChevronDown size={14} style={{ marginLeft: 4 }} />
+
+                {showNetworkDropdown && (
+                  <div className="network-dropdown" style={{ top: '100%', bottom: 'auto' }}>
+                    {NETWORKS.map(net => (
+                      <div
+                        key={net.id}
+                        className="network-item"
+                        onClick={() => { setNetwork(net); setShowNetworkDropdown(false) }}
+                      >
+                        <div className="network-dot" style={{ backgroundColor: net.id === 'mainnet' ? 'var(--primary-color)' : 'var(--cyan)' }}></div>
+                        {net.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
