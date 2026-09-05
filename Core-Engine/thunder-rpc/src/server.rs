@@ -180,6 +180,50 @@ impl RpcHandler {
                 }
             }
 
+            "thunder_verifyContract" => {
+                let address_str = request
+                    .params
+                    .get("address")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0x0");
+                let source_code = request
+                    .params
+                    .get("source")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+
+                if let Ok(addr) = thunder_core::crypto::address_from_hex(address_str) {
+                    let account = context
+                        .node
+                        .read()
+                        .unwrap()
+                        .state
+                        .read()
+                        .unwrap()
+                        .get_account(&addr);
+
+                    if account.code.is_empty() {
+                        JsonRpcResponse::error(request.id, -32002, "Account has no contract code")
+                    } else if let Ok(compiled) = thunder_lang::compile_source(source_code) {
+                        if let Ok(bytecode) = bincode::serialize(&compiled) {
+                            let verified = bytecode == account.code;
+                            JsonRpcResponse::success(
+                                request.id,
+                                serde_json::json!({
+                                    "verified": verified
+                                }),
+                            )
+                        } else {
+                            JsonRpcResponse::error(request.id, -32003, "Serialization failed")
+                        }
+                    } else {
+                        JsonRpcResponse::error(request.id, -32004, "Compilation failed")
+                    }
+                } else {
+                    JsonRpcResponse::error(request.id, -32005, "Invalid address format")
+                }
+            }
+
             "thunder_getNonce" => {
                 let address_str = request
                     .params
