@@ -193,7 +193,6 @@ function App() {
 
   // Stake Form State
   const [stakeAmount, setStakeAmount] = useState('')
-  const [stakeDuration, setStakeDuration] = useState<number>(0) // 0 = flexible, 30, 60, 90
 
   // Mint Form State
   const [nftName, setNftName] = useState('')
