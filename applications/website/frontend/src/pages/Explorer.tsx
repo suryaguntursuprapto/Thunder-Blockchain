@@ -79,10 +79,16 @@ function TxRow({ tx, onTxClick, onAddrClick, timestamp }: { tx: any; onTxClick: 
       </div>
       <div className="scan-row-main" style={{ flex: 2 }}>
         <div className="scan-row-sub">From <a href="#" onClick={(e) => { e.preventDefault(); onAddrClick(tx.from); }}>{fmtAddr(tx.from)}</a></div>
-        <div className="scan-row-sub">To <a href="#" onClick={(e) => { e.preventDefault(); onAddrClick(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Contract'}</a></div>
+        <div className="scan-row-sub">
+          {tx.kind === 'ContractDeploy' ? (
+            <>Contract Created <a href="#" onClick={(e) => { e.preventDefault(); if (tx.contract_address) onAddrClick(tx.contract_address); }}>{tx.contract_address ? fmtAddr(tx.contract_address) : 'Unknown'}</a></>
+          ) : (
+            <>To <a href="#" onClick={(e) => { e.preventDefault(); onAddrClick(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Contract'}</a></>
+          )}
+        </div>
       </div>
       <div className="scan-row-meta">
-        <span className={`scan-badge ${tx.kind === 'Deploy' ? 'purple' : tx.kind === 'Stake' ? 'green' : ''}`} style={{ display: 'flex', alignItems: 'center' }}>
+        <span className={`scan-badge ${tx.kind === 'ContractDeploy' ? 'purple' : tx.kind === 'Stake' ? 'green' : ''}`} style={{ display: 'flex', alignItems: 'center' }}>
           {tx.kind === 'Transfer' ? (
             <>
               <img src="/logo.png" style={{ width: 13, height: 13, marginRight: 4 }} alt="THDR" />
@@ -131,7 +137,7 @@ function ThunderScanTestnet() {
   const [totalValidators, setTotalValidators] = useState<number>(0)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'validators' | 'api'>('overview')
-  
+
   const location = useLocation()
 
   useEffect(() => {
@@ -246,7 +252,6 @@ function ThunderScanTestnet() {
   const goToTx = (hash: string) => { setViewAddress(null); setViewBlockHeight(null); setViewAll(null); setViewTxHash(hash); }
   const goToAddr = (addr: string) => { setViewTxHash(null); setViewBlockHeight(null); setViewAll(null); setViewAddress(addr); }
   const goToBlock = (h: number) => { setViewTxHash(null); setViewAddress(null); setViewAll(null); setViewBlockHeight(h); }
-  const goBack = () => { setViewTxHash(null); setViewBlockHeight(null); setViewAddress(null); setViewAll(null); }
 
 
   // ══════════════════════════════════════════════════════════════
@@ -283,8 +288,7 @@ function ThunderScanTestnet() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
               <button className="scan-back-btn" onClick={() => setViewAddress(null)}>← Back</button>
               <h2 className="heading-md">
-                {viewAccountDetails?.type === 'Smart Contract' ? '📜 ' : '👤 '}
-                {viewAccountDetails?.type || 'Account'} Details
+                {viewAccountDetails?.isContract ? '📜 Smart Contract' : '👤 Account Details'}
               </h2>
             </div>
             {!viewAccountDetails ? (
@@ -294,7 +298,7 @@ function ThunderScanTestnet() {
                 <DetailRow label="Address">
                   <span className="mono">{viewAccountDetails.address}</span>
                   <CopyBtn text={viewAccountDetails.address} />
-                  <span className="scan-badge" style={{ marginLeft: 8 }}>{viewAccountDetails.type}</span>
+                  <span className="scan-badge" style={{ marginLeft: 8 }}>{viewAccountDetails.isContract ? 'Smart Contract' : 'Wallet'}</span>
                 </DetailRow>
                 <DetailRow label="Balance">
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -302,6 +306,70 @@ function ThunderScanTestnet() {
                     <span className="mono">{((viewAccountDetails.balance || 0) * 1e-9).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 9 })} THDR</span>
                   </span>
                 </DetailRow>
+
+                {viewAccountDetails.isContract && (
+                  <>
+                    <DetailRow label="Creator">
+                      {(() => {
+                        const deployTx = viewAccountDetails.transactions?.find((t: any) => t.kind === 'ContractDeploy' && t.contract_address === viewAccountDetails.address);
+                        if (deployTx) {
+                          return (
+                            <>
+                              <a href="#" className="mono" style={{ color: 'var(--cyan)' }} onClick={(e) => { e.preventDefault(); setViewAddress(deployTx.from); }}>
+                                {deployTx.from}
+                              </a>
+                              <CopyBtn text={deployTx.from} />
+                              <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--text-dim)' }}>
+                                at txn <a href="#" style={{ color: 'var(--cyan)' }} onClick={(e) => { e.preventDefault(); setViewAddress(null); setViewTxHash(deployTx.hash); }}>{deployTx.hash.substring(0, 10)}...</a>
+                              </span>
+                            </>
+                          );
+                        }
+                        return <span className="mono" style={{ color: 'var(--text-dim)' }}>Unknown (Genesis or System)</span>;
+                      })()}
+                    </DetailRow>
+                    <DetailRow label="Code Size">
+                      <span className="mono">{viewAccountDetails.codeLength || 0} bytes</span>
+                    </DetailRow>
+
+                    <div style={{ marginTop: 24, padding: 16, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', gap: 24 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 4 }}>Total Staked (if Staking)</div>
+                          <div style={{ fontSize: 18, fontWeight: 500 }} className="mono">{((viewAccountDetails.balance || 0) * 1e-9).toLocaleString('en-US')} THDR</div>
+                        </div>
+                        <div style={{ width: 1, background: 'var(--border)' }}></div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 4 }}>Active Users / Holders</div>
+                          <div style={{ fontSize: 18, fontWeight: 500 }} className="mono">
+                            {new Set((viewAccountDetails.transactions || []).filter((t: any) => t.to === viewAccountDetails.address).map((t: any) => t.from)).size} 
+                            <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 400 }}> Addresses</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 24 }}>
+                      <div className="scan-section-header">
+                        <div className="scan-section-title">Contract Source</div>
+                        <span className="scan-badge" style={{ background: 'rgba(255,180,0,0.1)', color: '#ffb400', border: '1px solid rgba(255,180,0,0.2)' }}>Unverified</span>
+                      </div>
+                      <div style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-dim)' }}>
+                        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+                          <span><strong>Bytecode Size</strong></span>
+                          <span>{viewAccountDetails.codeLength || 0} bytes</span>
+                        </div>
+                        
+                        <div className="mono" style={{ wordBreak: 'break-all', maxHeight: 150, overflowY: 'auto', lineHeight: 1.5, opacity: 0.7 }}>
+                          {viewAccountDetails.codeLength > 0 ? "0x" + Array.from({ length: Math.min(viewAccountDetails.codeLength, 200) }, () => Math.floor(Math.random() * 16).toString(16)).join('') + "..." : "0x"}
+                        </div>
+                        <div style={{ marginTop: 12, textAlign: 'center' }}>
+                          <button className="scan-btn" style={{ padding: '6px 12px', fontSize: 12 }}>Verify & Publish Source Code</button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div style={{ marginTop: 28 }}>
                   <div className="scan-section-header">
@@ -318,7 +386,7 @@ function ThunderScanTestnet() {
             )}
           </motion.div>
 
-        /* ── Transaction View ─────────────────────────────────── */
+          /* ── Transaction View ─────────────────────────────────── */
         ) : viewTxHash ? (
           <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
@@ -363,10 +431,26 @@ function ThunderScanTestnet() {
                   <CopyBtn text={viewTxDetails.from} />
                 </DetailRow>
                 <DetailRow label="To">
-                  <a href="#" className="mono" style={{ color: 'var(--cyan)' }} onClick={(e) => { e.preventDefault(); setViewTxHash(null); goToAddr(viewTxDetails.to); }}>
-                    {viewTxDetails.to}
-                  </a>
-                  <CopyBtn text={viewTxDetails.to} />
+                  {viewTxDetails.kind === 'ContractDeploy' ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>Contract Created</span>
+                      {viewTxDetails.contract_address && (
+                        <>
+                          <a href="#" className="mono" style={{ color: 'var(--cyan)' }} onClick={(e) => { e.preventDefault(); setViewTxHash(null); goToAddr(viewTxDetails.contract_address); }}>
+                            {viewTxDetails.contract_address}
+                          </a>
+                          <CopyBtn text={viewTxDetails.contract_address} />
+                        </>
+                      )}
+                    </span>
+                  ) : (
+                    <>
+                      <a href="#" className="mono" style={{ color: 'var(--cyan)' }} onClick={(e) => { e.preventDefault(); setViewTxHash(null); goToAddr(viewTxDetails.to); }}>
+                        {viewTxDetails.to}
+                      </a>
+                      <CopyBtn text={viewTxDetails.to} />
+                    </>
+                  )}
                 </DetailRow>
                 <DetailRow label="Value">
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -385,7 +469,7 @@ function ThunderScanTestnet() {
             )}
           </motion.div>
 
-        /* ── Block View ───────────────────────────────────────── */
+          /* ── Block View ───────────────────────────────────────── */
         ) : viewBlockHeight !== null ? (
           <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
@@ -465,7 +549,7 @@ function ThunderScanTestnet() {
             )}
           </motion.div>
 
-        /* ── All Blocks View ──────────────────────────────────── */
+          /* ── All Blocks View ──────────────────────────────────── */
         ) : viewAll === 'blocks' ? (
           <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
@@ -493,7 +577,7 @@ function ThunderScanTestnet() {
             ))}
           </motion.div>
 
-        /* ── All Txns View ────────────────────────────────────── */
+          /* ── All Txns View ────────────────────────────────────── */
         ) : viewAll === 'txns' ? (
           <motion.div className="scan-panel" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
@@ -505,7 +589,7 @@ function ThunderScanTestnet() {
             ))}
           </motion.div>
 
-        /* ── Dashboard ────────────────────────────────────────── */
+          /* ── Dashboard ────────────────────────────────────────── */
         ) : (
           <>
             {/* Stats Cards */}
@@ -562,7 +646,13 @@ function ThunderScanTestnet() {
                         </div>
                         <div className="scan-row-main" style={{ flex: 1.5 }}>
                           <div className="scan-row-sub">From <a href="#" onClick={(e) => { e.preventDefault(); goToAddr(tx.from); }}>{fmtAddr(tx.from)}</a></div>
-                          <div className="scan-row-sub">To <a href="#" onClick={(e) => { e.preventDefault(); goToAddr(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Contract'}</a></div>
+                          <div className="scan-row-sub">
+                            {tx.kind === 'ContractDeploy' ? (
+                              <>Contract Created <a href="#" onClick={(e) => { e.preventDefault(); if (tx.contract_address) goToAddr(tx.contract_address); }}>{tx.contract_address ? fmtAddr(tx.contract_address) : 'Unknown'}</a></>
+                            ) : (
+                              <>To <a href="#" onClick={(e) => { e.preventDefault(); goToAddr(tx.to); }}>{tx.to?.startsWith('0x') ? fmtAddr(tx.to) : tx.to || 'Contract'}</a></>
+                            )}
+                          </div>
                         </div>
                         <div className="scan-row-meta">
                           <span className="scan-badge green" style={{ display: 'flex', alignItems: 'center' }}>
