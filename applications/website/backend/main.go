@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/ed25519"
-	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -289,6 +287,7 @@ func main() {
 	app.Post("/api/tx/stake", func(c *fiber.Ctx) error {
 		type StakeReq struct {
 			Amount     string `json:"amount"`
+			Duration   int    `json:"duration"`
 			PrivateKey string `json:"private_key"`
 		}
 		var req StakeReq
@@ -306,7 +305,7 @@ func main() {
 			return c.Status(400).JSON(fiber.Map{"error": "Invalid private key format"})
 		}
 		
-		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "tx", "stake", "--amount", req.Amount)
+		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "tx", "stake", "--amount", req.Amount, "--duration", strconv.Itoa(req.Duration))
 		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network"
 		cmd.Stdin = bytes.NewBufferString(pkHex + "\n")
 		
@@ -326,31 +325,133 @@ func main() {
 		})
 	})
 
+	// /api/tx/unstake
+	app.Post("/api/tx/unstake", func(c *fiber.Ctx) error {
+		type UnstakeReq struct {
+			PrivateKey string `json:"private_key"`
+		}
+		var req UnstakeReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+		
+		pkHex := req.PrivateKey
+		if strings.HasPrefix(pkHex, "0x") {
+			pkHex = pkHex[2:]
+		}
+
+		seed, err := hex.DecodeString(pkHex)
+		if err != nil || len(seed) != 32 {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid private key format"})
+		}
+		
+		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "tx", "unstake")
+		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network"
+		cmd.Stdin = bytes.NewBufferString(pkHex + "\n")
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to execute tx unstake", "details": string(output)})
+		}
+
+		outStr := string(output)
+		if strings.Contains(outStr, "❌") || strings.Contains(outStr, "Error") || strings.Contains(outStr, "error") {
+			return c.Status(400).JSON(fiber.Map{"error": outStr})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"output":  outStr,
+		})
+	})
+
+	// /api/faucet
+	app.Post("/api/faucet", func(c *fiber.Ctx) error {
+		type FaucetReq struct {
+			Address string `json:"address"`
+		}
+		var req FaucetReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+
+		// Hardcoded faucet rules: 1000 THDR per request (scale to nano-THDR)
+		res, err := fetchRpc("thunder_requestFaucet", map[string]interface{}{
+			"address":   req.Address,
+			"amount":    1000000000000,
+			"gas_price": 1,
+		})
+
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+		}
+		return c.JSON(res)
+	})
+
 	// /api/wallet/derive-address
 	app.Post("/api/wallet/derive-address", func(c *fiber.Ctx) error {
 		type DeriveReq struct {
-			PrivateKey string `json:"private_key"`
+			Seed  string `json:"seed"`
+			Index int    `json:"index"`
 		}
 		var req DeriveReq
 		if err := c.BodyParser(&req); err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 		}
 		
-		pkHex := strings.TrimPrefix(req.PrivateKey, "0x")
-		seed, err := hex.DecodeString(pkHex)
-		if err != nil || len(seed) != 32 {
-			return c.Status(400).JSON(fiber.Map{"error": "Invalid private key format (must be 32 bytes hex)"})
+		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "wallet", "derive-address", "--seed", req.Seed, "--index", strconv.Itoa(req.Index))
+		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network"
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to derive address", "details": string(output)})
 		}
 		
-		privKey := ed25519.NewKeyFromSeed(seed)
-		pubKey := privKey.Public().(ed25519.PublicKey)
+		outStr := strings.TrimSpace(string(output))
+		lines := strings.Split(outStr, "\n")
+		var jsonLine string
+		for _, line := range lines {
+			if strings.HasPrefix(strings.TrimSpace(line), "{") {
+				jsonLine = line
+				break
+			}
+		}
 		
-		hash := sha256.Sum256(pubKey)
-		address := "0x" + hex.EncodeToString(hash[:20])
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(jsonLine), &result); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to parse derive output", "details": outStr})
+		}
 		
-		return c.JSON(fiber.Map{
-			"address": address,
-		})
+		return c.JSON(result)
+	})
+
+	// /api/wallet/generate-seed
+	app.Post("/api/wallet/generate-seed", func(c *fiber.Ctx) error {
+		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "wallet", "generate-seed")
+		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network"
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to generate seed", "details": string(output)})
+		}
+		
+		outStr := strings.TrimSpace(string(output))
+		// find the json output
+		lines := strings.Split(outStr, "\n")
+		var jsonLine string
+		for _, line := range lines {
+			if strings.HasPrefix(strings.TrimSpace(line), "{") {
+				jsonLine = line
+				break
+			}
+		}
+		
+		var result map[string]interface{}
+		if err := json.Unmarshal([]byte(jsonLine), &result); err != nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Failed to parse seed output", "details": outStr})
+		}
+		
+		return c.JSON(result)
 	})
 
 	fmt.Println("🚀 Golang Fiber API Server listening on port 5050")
