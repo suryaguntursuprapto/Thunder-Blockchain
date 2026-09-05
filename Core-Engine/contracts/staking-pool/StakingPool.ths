@@ -1,0 +1,40 @@
+contract StakingPool {
+    state total_staked: u64;
+    state stakes: map<u64, u64>;
+    
+    fn deposit() {
+        let sender = caller();
+        let amount = value();
+        
+        require(amount > 0, "Amount must be greater than 0");
+        
+        let current = self.stakes[sender];
+        self.stakes[sender] = current + amount;
+        
+        self.total_staked = self.total_staked + amount;
+        
+        emit Deposit(sender, amount);
+    }
+    
+    fn withdraw(amount: u64) {
+        let sender = caller();
+        let current = self.stakes[sender];
+        
+        require(current >= amount, "Insufficient staked balance");
+        
+        self.stakes[sender] = current - amount;
+        self.total_staked = self.total_staked - amount;
+        
+        transfer(sender, amount);
+        
+        emit Withdraw(sender, amount);
+    }
+
+    fn get_total_staked() -> u64 {
+        return self.total_staked;
+    }
+
+    fn get_stake(user: u64) -> u64 {
+        return self.stakes[user];
+    }
+}
