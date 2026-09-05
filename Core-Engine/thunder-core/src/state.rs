@@ -202,11 +202,12 @@ impl WorldState {
                     if let Ok(compiled) = compiled {
                         if let Some(&start_pc) = compiled.function_table.get("withdraw_all") {
                             // Read staked amount natively from contract storage
-                            let mut key = b"stakes".to_vec();
-                            key.extend_from_slice(&tx.from);
-                            let storage_key = crate::crypto::hash_sha256(&key);
+                            let caller_key = u64::from_le_bytes(tx.from[..8].try_into().unwrap());
+                            let map_slot: u64 = 1; // stakes is the second state variable (slot 1)
+                            let map_key = map_slot * 1_000_000 + caller_key;
+                            let storage_key = map_key.to_le_bytes().to_vec();
                             
-                            let staked_amount_bytes = contract.storage.get(&storage_key.to_vec());
+                            let staked_amount_bytes = contract.storage.get(&storage_key);
                             let staked_amount = if let Some(bytes) = staked_amount_bytes {
                                 let mut arr = [0u8; 8];
                                 arr.copy_from_slice(&bytes[..8]);
