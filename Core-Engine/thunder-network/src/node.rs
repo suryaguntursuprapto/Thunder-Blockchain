@@ -267,12 +267,7 @@ impl Node {
                     };
                     let _ = self.validator_set.register(tx.from, tx.public_key, tx.value, duration);
                 } else if tx.kind == thunder_core::transaction::TransactionKind::Unstake {
-                    if let Ok(staked_amount) = self.validator_set.unregister(&tx.from) {
-                        let mut state = self.state.write().unwrap();
-                        let mut account = state.get_account(&tx.from);
-                        account.balance += staked_amount;
-                        state.set_account(&tx.from, account);
-                    }
+                    let _ = self.validator_set.unregister(&tx.from);
                 }
                 
                 let _ = self.state.write().unwrap().apply_transaction(&tx);
