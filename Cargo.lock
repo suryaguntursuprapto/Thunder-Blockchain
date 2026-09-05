@@ -5387,6 +5387,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 1.0.69",
+ "thunder-vm",
  "tracing",
 ]
 
@@ -5412,6 +5413,7 @@ dependencies = [
  "thiserror 1.0.69",
  "thunder-consensus",
  "thunder-core",
+ "thunder-lang",
  "tokio",
  "tracing",
 ]
@@ -5457,8 +5459,8 @@ version = "0.1.0"
 dependencies = [
  "ed25519-dalek",
  "serde",
+ "sha2",
  "thiserror 1.0.69",
- "thunder-core",
  "tracing",
 ]
 
