@@ -64,7 +64,7 @@ fn derive_contract_address(creator: &thunder_core::crypto::Address, nonce: u64) 
     data.extend_from_slice(&nonce.to_le_bytes());
     let hash = thunder_core::crypto::hash_sha256(&data);
     let mut addr = [0u8; 20];
-    addr.copy_from_slice(&hash[0..20]);
+    addr.copy_from_slice(&hash[12..32]);
     thunder_core::crypto::address_to_hex(&addr)
 }
 
