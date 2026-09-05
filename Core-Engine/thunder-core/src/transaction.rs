@@ -142,6 +142,7 @@ impl Transaction {
         nonce: u64,
         from: Address,
         amount: u64,
+        duration_days: u32,
         gas_limit: u64,
         gas_price: u64,
     ) -> Self {
@@ -151,10 +152,33 @@ impl Transaction {
             from,
             to: [0u8; 20],
             value: amount,
-            data: Vec::new(),
+            data: duration_days.to_le_bytes().to_vec(),
             gas_limit,
             gas_price,
             kind: TransactionKind::Stake,
+            signature: [0u8; 64],
+            public_key: [0u8; 32],
+        }
+    }
+
+    /// Create a new **unsigned** unstake transaction.
+    pub fn new_unstake(
+        chain_id: u64,
+        nonce: u64,
+        from: Address,
+        gas_limit: u64,
+        gas_price: u64,
+    ) -> Self {
+        Self {
+            chain_id,
+            nonce,
+            from,
+            to: [0u8; 20],
+            value: 0,
+            data: Vec::new(),
+            gas_limit,
+            gas_price,
+            kind: TransactionKind::Unstake,
             signature: [0u8; 64],
             public_key: [0u8; 32],
         }

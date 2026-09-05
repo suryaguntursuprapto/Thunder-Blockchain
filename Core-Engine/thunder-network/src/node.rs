@@ -116,7 +116,7 @@ impl Node {
     /// Register this node as a validator.
     pub fn register_as_validator(&mut self, stake: u64) -> Result<(), String> {
         self.validator_set
-            .register(self.key_pair.address(), self.key_pair.public_key(), stake)
+            .register(self.key_pair.address(), self.key_pair.public_key(), stake, 0)
             .map_err(|e| e.to_string())?;
 
         // Update consensus engine with the new validator set.
@@ -126,6 +126,21 @@ impl Node {
             .iter()
             .map(|v| v.address)
             .collect();
+
+        // If we are at genesis block, inject a genesis staking transaction
+        if self.chain.len() == 1 {
+            let mut genesis_tx = Transaction::new_stake(
+                1,
+                0,
+                self.key_pair.address(),
+                stake,
+                0, // flexible duration for genesis
+                21000,
+                1,
+            );
+            genesis_tx.sign(&self.key_pair);
+            self.chain[0].transactions.push(genesis_tx);
+        }
 
         Ok(())
     }
@@ -196,7 +211,21 @@ impl Node {
                 
                 // Process staking directly before applying state
                 if tx.kind == thunder_core::transaction::TransactionKind::Stake {
-                    let _ = self.validator_set.register(tx.from, tx.public_key, tx.value);
+                    let duration = if tx.data.len() == 4 {
+                        let mut bytes = [0u8; 4];
+                        bytes.copy_from_slice(&tx.data);
+                        u32::from_le_bytes(bytes)
+                    } else {
+                        0
+                    };
+                    let _ = self.validator_set.register(tx.from, tx.public_key, tx.value, duration);
+                } else if tx.kind == thunder_core::transaction::TransactionKind::Unstake {
+                    if let Ok(staked_amount) = self.validator_set.unregister(&tx.from) {
+                        let mut state = self.state.write().unwrap();
+                        let mut account = state.get_account(&tx.from);
+                        account.balance += staked_amount;
+                        state.set_account(&tx.from, account);
+                    }
                 }
                 
                 let _ = self.state.write().unwrap().apply_transaction(&tx);

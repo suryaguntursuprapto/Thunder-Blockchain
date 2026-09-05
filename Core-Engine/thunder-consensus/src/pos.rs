@@ -44,6 +44,7 @@ impl ValidatorSet {
         address: Address,
         public_key: PublicKey,
         stake: u64,
+        pool_duration: u32,
     ) -> Result<(), StakeError> {
         if stake < self.min_stake {
             return Err(StakeError::BelowMinimumStake {
@@ -57,7 +58,7 @@ impl ValidatorSet {
 
         self.total_stake += stake;
         self.validators
-            .insert(address, Validator::new(address, public_key, stake, 5));
+            .insert(address, Validator::new(address, public_key, stake, 5, pool_duration));
         Ok(())
     }
 
@@ -205,7 +206,7 @@ mod tests {
 
         for stake in [1000u64, 2000, 3000] {
             let kp = KeyPair::generate();
-            vs.register(kp.address(), kp.public_key(), stake).unwrap();
+            vs.register(kp.address(), kp.public_key(), stake, 0).unwrap();
             kps.push(kp);
         }
 
@@ -224,7 +225,7 @@ mod tests {
     fn test_below_minimum_stake() {
         let mut vs = ValidatorSet::new(100);
         let kp = KeyPair::generate();
-        let result = vs.register(kp.address(), kp.public_key(), 50);
+        let result = vs.register(kp.address(), kp.public_key(), 50, 0);
         assert!(matches!(result, Err(StakeError::BelowMinimumStake { .. })));
     }
 

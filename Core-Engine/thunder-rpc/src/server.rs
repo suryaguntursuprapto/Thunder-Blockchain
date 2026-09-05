@@ -228,7 +228,7 @@ impl RpcHandler {
 
                         let mut n = context.node.write().unwrap();
 
-                        if let Err(e) = n.validator_set.register(addr, pk, stake) {
+                        if let Err(e) = n.validator_set.register(addr, pk, stake, 0) {
                             return JsonRpcResponse::error(request.id, -32000, &e.to_string());
                         }
 

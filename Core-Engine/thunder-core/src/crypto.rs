@@ -5,8 +5,11 @@
 //  and address derivation used throughout the entire blockchain.
 // ---------------------------------------------------------------------------
 
+use bip39::{Language, Mnemonic};
 use ed25519_dalek::{Signer, SigningKey, Verifier, VerifyingKey};
+use hkdf::Hkdf;
 use rand::rngs::OsRng;
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -108,6 +111,33 @@ pub fn verify_signature(public_key: &PublicKey, message: &[u8], signature: &Sign
 }
 
 // ── Display helpers (hex) ──────────────────────────────────────────────────
+
+/// Generate a new 12-word Thunder native seed phrase.
+pub fn generate_mnemonic() -> String {
+    let mut rng = OsRng;
+    let mut entropy = [0u8; 16];
+    rng.fill_bytes(&mut entropy);
+    let mnemonic = Mnemonic::from_entropy_in(Language::English, &entropy).unwrap();
+    mnemonic.to_string()
+}
+
+/// Derive a KeyPair from a 12-word seed phrase and an account index.
+pub fn derive_keypair_from_seed(mnemonic_phrase: &str, account_index: u32) -> Result<KeyPair, &'static str> {
+    let mnemonic = Mnemonic::parse_in(Language::English, mnemonic_phrase)
+        .map_err(|_| "Invalid seed phrase")?;
+    
+    // Get the seed bytes from the mnemonic (no passphrase)
+    let seed = mnemonic.to_seed("");
+    
+    // Use HKDF-SHA256 to derive a 32-byte secret key based on the account index
+    let hk = Hkdf::<Sha256>::new(None, &seed);
+    let mut okm = [0u8; 32];
+    let info = format!("thunder-account-{}", account_index);
+    hk.expand(info.as_bytes(), &mut okm).map_err(|_| "HKDF expansion failed")?;
+    
+    Ok(KeyPair::from_secret_bytes(&okm))
+}
+
 
 /// Pretty-print a hash as a hex string.
 pub fn hash_to_hex(hash: &Hash) -> String {

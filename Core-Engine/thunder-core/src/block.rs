@@ -71,7 +71,7 @@ impl Block {
     pub fn genesis() -> Self {
         let header = BlockHeader {
             height: 0,
-            timestamp: 0,
+            timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
             prev_hash: [0u8; 32],
             state_root: [0u8; 32],
             tx_root: [0u8; 32],

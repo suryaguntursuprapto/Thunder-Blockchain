@@ -77,6 +77,15 @@ enum NodeCommands {
 enum WalletCommands {
     /// Generate a new wallet (key pair).
     Create,
+    /// Generate a new 12-word Thunder seed phrase.
+    GenerateSeed,
+    /// Derive an address from a seed phrase and account index.
+    DeriveAddress {
+        #[arg(short, long)]
+        seed: String,
+        #[arg(short, long, default_value_t = 0)]
+        index: u32,
+    },
     /// Login to the interactive wallet shell
     Login,
     /// Show the balance of an address.
@@ -103,6 +112,13 @@ enum TxCommands {
     Stake {
         #[arg(short, long)]
         amount: u64,
+        #[arg(short, long, default_value_t = 0)]
+        duration: u32,
+        #[arg(short, long, default_value_t = 21000)]
+        gas_limit: u64,
+    },
+    /// Unstake coins to exit the validator set.
+    Unstake {
         #[arg(short, long, default_value_t = 21000)]
         gas_limit: u64,
     },
@@ -238,6 +254,26 @@ fn main() {
 
         // ── Wallet Commands ────────────────────────────────────────────
         Commands::Wallet { action } => match action {
+            WalletCommands::GenerateSeed => {
+                let mnemonic = thunder_core::crypto::generate_mnemonic();
+                println!("{{ \"mnemonic\": \"{}\" }}", mnemonic);
+            }
+            WalletCommands::DeriveAddress { seed, index } => {
+                match thunder_core::crypto::derive_keypair_from_seed(&seed, index) {
+                    Ok(kp) => {
+                        let serializable = SerializableKeyPair::from(&kp);
+                        let json = serde_json::json!({
+                            "address": serializable.address,
+                            "public_key": serializable.public_key,
+                            "private_key": serializable.secret_key
+                        });
+                        println!("{}", json.to_string());
+                    }
+                    Err(e) => {
+                        eprintln!("Error deriving address: {}", e);
+                    }
+                }
+            }
             WalletCommands::Create => {
                 let kp = KeyPair::generate();
                 let serializable = SerializableKeyPair::from(&kp);
@@ -629,7 +665,7 @@ fn main() {
                     Err(e) => println!("  ❌ Failed to connect to node: {}", e),
                 }
             }
-            TxCommands::Stake { amount, gas_limit } => {
+            TxCommands::Stake { amount, duration, gas_limit } => {
                 println!("⚡ Initiating Stake Transaction");
                 println!("  To authenticate, please provide your Wallet Secret Key.");
 
@@ -669,6 +705,7 @@ fn main() {
                     unique_nonce,
                     key_pair.address(),
                     amount,
+                    duration,
                     gas_limit,
                     1,
                 );
@@ -699,6 +736,77 @@ fn main() {
                                 result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or("")
                             );
                             println!("  amount  : {} THDR", amount);
+                            println!("  gas     : {}", gas_limit);
+                        } else {
+                            println!("  ❌ RPC Error: {:?}", json.get("error"));
+                        }
+                    }
+                    Err(e) => println!("  ❌ Failed to connect to node: {}", e),
+                }
+            }
+            TxCommands::Unstake { gas_limit } => {
+                println!("\n  ⚡ Initiating Unstake Transaction...");
+                println!("  To authenticate, please provide your Wallet Secret Key.");
+
+                use std::io::{self, Write};
+                print!("  [🔑] Enter Secret Key (Hex): ");
+                io::stdout().flush().unwrap();
+                let mut secret_input = String::new();
+                io::stdin().read_line(&mut secret_input).unwrap();
+                let secret_input = secret_input.trim();
+
+                let secret_bytes = match hex::decode(secret_input) {
+                    Ok(b) if b.len() == 32 => {
+                        let mut arr = [0u8; 32];
+                        arr.copy_from_slice(&b);
+                        arr
+                    }
+                    _ => {
+                        println!("  ❌ Invalid Secret Key length or format.");
+                        return;
+                    }
+                };
+
+                let key_pair = thunder_core::crypto::KeyPair::from_secret_bytes(&secret_bytes);
+                
+                let unique_nonce = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .subsec_nanos() as u64;
+                    
+                let mut tx = thunder_core::transaction::Transaction::new_unstake(
+                    1, 
+                    unique_nonce,
+                    key_pair.address(),
+                    gas_limit,
+                    1,
+                );
+                tx.sign(&key_pair);
+                let serialized_tx =
+                    bincode::serialize(&tx).expect("Failed to serialize transaction");
+                let hex_data = hex::encode(serialized_tx);
+
+                let rpc_url = "http://127.0.0.1:8080";
+                let client = reqwest::blocking::Client::new();
+
+                let payload = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "method": "thunder_sendTransaction",
+                    "params": {
+                        "data": hex_data
+                    },
+                    "id": 1
+                });
+
+                match client.post(rpc_url).json(&payload).send() {
+                    Ok(res) => {
+                        let json: serde_json::Value = res.json().unwrap_or_default();
+                        if let Some(result) = json.get("result") {
+                            println!("  ✅ Unstake Transaction Submitted Successfully!");
+                            println!(
+                                "  tx_hash : {}",
+                                result.get("tx_hash").and_then(|v| v.as_str()).unwrap_or("")
+                            );
                             println!("  gas     : {}", gas_limit);
                         } else {
                             println!("  ❌ RPC Error: {:?}", json.get("error"));
