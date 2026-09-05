@@ -142,8 +142,21 @@ impl Node {
             genesis_validator.balance = 1_000_000_000_000_000;
             state.set_account(&self.key_pair.address(), genesis_validator);
 
-            let contract_path = "Core-Engine/contracts/staking-pool/StakingPool.ths";
-            if let Ok(source) = std::fs::read_to_string(contract_path) {
+            let possible_paths = [
+                "Core-Engine/contracts/staking-pool/StakingPool.ths",
+                "contracts/staking-pool/StakingPool.ths",
+                "../Core-Engine/contracts/staking-pool/StakingPool.ths",
+            ];
+            
+            let mut contract_source = None;
+            for path in &possible_paths {
+                if let Ok(source) = std::fs::read_to_string(path) {
+                    contract_source = Some(source);
+                    break;
+                }
+            }
+
+            if let Some(source) = contract_source {
                 if let Ok(compiled) = thunder_lang::compile_source(&source) {
                     let bytecode = bincode::serialize(&compiled).unwrap();
                     let mut deploy_tx = Transaction::new_deploy(
@@ -163,7 +176,7 @@ impl Node {
                     tracing::warn!("Failed to compile System Staking Contract at genesis");
                 }
             } else {
-                tracing::warn!("System Staking Contract source not found at {}", contract_path);
+                tracing::warn!("System Staking Contract source not found");
             }
 
             // 2. Genesis Stake as a ContractCall to 'deposit'
