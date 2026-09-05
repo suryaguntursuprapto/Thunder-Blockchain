@@ -196,7 +196,58 @@ impl WorldState {
                 }
             }
             TransactionKind::Unstake => {
-                // Unstaking could similarly call a `withdraw` function on the system contract
+                let mut contract = self.get_account(&crate::crypto::system_staking_address());
+                if !contract.code.is_empty() {
+                    let compiled: Result<thunder_vm::CompiledContract, _> = bincode::deserialize(&contract.code);
+                    if let Ok(compiled) = compiled {
+                        if let Some(&start_pc) = compiled.function_table.get("withdraw_all") {
+                            // Read staked amount natively from contract storage
+                            let mut key = b"stakes".to_vec();
+                            key.extend_from_slice(&tx.from);
+                            let storage_key = crate::crypto::hash_sha256(&key);
+                            
+                            let staked_amount_bytes = contract.storage.get(&storage_key.to_vec());
+                            let staked_amount = if let Some(bytes) = staked_amount_bytes {
+                                let mut arr = [0u8; 8];
+                                arr.copy_from_slice(&bytes[..8]);
+                                u64::from_le_bytes(arr)
+                            } else {
+                                0
+                            };
+
+                            if staked_amount > 0 {
+                                let ctx = thunder_vm::ExecutionContext {
+                                    caller: tx.from,
+                                    contract_address: crate::crypto::system_staking_address(),
+                                    value: 0,
+                                    timestamp: 0,
+                                    block_height: 0,
+                                };
+                                let mut vm = thunder_vm::ThunderVm::new(compiled.instructions, ctx, tx.gas_limit, tx.gas_price, contract.storage.clone());
+                                vm.set_pc(start_pc);
+                                
+                                match vm.execute() {
+                                    Ok(result) if !result.reverted => {
+                                        contract.storage = result.storage;
+                                        contract.balance = contract.balance.saturating_sub(staked_amount);
+                                        self.set_account(&crate::crypto::system_staking_address(), contract);
+                                        
+                                        // Give the tokens back to the user natively
+                                        let mut user = self.get_account(&tx.from);
+                                        user.balance = user.balance.saturating_add(staked_amount);
+                                        self.set_account(&tx.from, user);
+                                    }
+                                    Ok(result) => { tracing::error!("Unstaking reverted: {:?}", result.revert_reason); },
+                                    Err(e) => { tracing::error!("Unstaking VM error: {:?}", e); },
+                                }
+                            } else {
+                                tracing::error!("Unstaking failed: No staked balance");
+                            }
+                        } else {
+                            tracing::error!("withdraw_all function not found in StakingPool");
+                        }
+                    }
+                }
             }
             TransactionKind::ContractCall => {
                 let mut contract = self.get_account(&tx.to);

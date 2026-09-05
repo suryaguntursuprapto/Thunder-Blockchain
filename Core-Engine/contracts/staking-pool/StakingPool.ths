@@ -25,9 +25,19 @@ contract StakingPool {
         self.stakes[sender] = current - amount;
         self.total_staked = self.total_staked - amount;
         
-        transfer(sender, amount);
-        
         emit Withdraw(sender, amount);
+    }
+
+    fn withdraw_all() {
+        let sender = caller();
+        let current = self.stakes[sender];
+        
+        require(current > 0, "No staked balance");
+        
+        self.stakes[sender] = 0;
+        self.total_staked = self.total_staked - current;
+        
+        emit Withdraw(sender, current);
     }
 
     fn get_total_staked() -> u64 {
