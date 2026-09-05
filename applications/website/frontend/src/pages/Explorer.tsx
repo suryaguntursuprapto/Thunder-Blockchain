@@ -254,9 +254,21 @@ function ThunderScanTestnet() {
   const goToBlock = (h: number) => { setViewTxHash(null); setViewAddress(null); setViewAll(null); setViewBlockHeight(h); }
 
 
-  // ══════════════════════════════════════════════════════════════
-  //  RENDER
-  // ══════════════════════════════════════════════════════════════
+  // Process transactions to determine active users/holders
+  const activeUsers = new Set<string>();
+  if (viewAccountDetails && viewAccountDetails.transactions) {
+    [...viewAccountDetails.transactions].reverse().forEach((t: any) => {
+      if (t.to === viewAccountDetails.address) {
+        if (t.kind === 'Stake' || t.value > 0) {
+          activeUsers.add(t.from);
+        }
+        if (t.kind === 'Unstake' || (t.data && atob(t.data).includes('withdraw_all'))) {
+          activeUsers.delete(t.from);
+        }
+      }
+    });
+  }
+
   return (
     <div className="scan-page">
       <div className="container">
@@ -342,7 +354,7 @@ function ThunderScanTestnet() {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 4 }}>Active Users / Holders</div>
                           <div style={{ fontSize: 18, fontWeight: 500 }} className="mono">
-                            {new Set((viewAccountDetails.transactions || []).filter((t: any) => t.to === viewAccountDetails.address).map((t: any) => t.from)).size} 
+                            {activeUsers.size} 
                             <span style={{ fontSize: 14, color: 'var(--text-dim)', fontWeight: 400 }}> Addresses</span>
                           </div>
                         </div>
