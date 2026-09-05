@@ -23,6 +23,7 @@ function App() {
 
   const [activeTab, setActiveTab] = useState<Tab>('tokens')
   const [view, setView] = useState<View>('home')
+  const [poolAddress, setPoolAddress] = useState('')
 
   // Network & Balance State
   const [network, setNetwork] = useState(NETWORKS[1]) // Default to Testnet for now
@@ -237,65 +238,70 @@ function App() {
     }
   }
 
-  const handleStake = async () => {
-    if (!wallet) return
-    if (!stakeAmount || isNaN(parseFloat(stakeAmount)) || parseFloat(stakeAmount) <= 0) {
-      setModal({ show: true, type: 'error', message: 'Please enter a valid stake amount' })
-      return
+    const handleDeployPool = async () => {
+      if (!wallet) return
+      setIsLoading(true)
+      try {
+        const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/deploy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              private_key: wallet.privateKey,
+              file: "contracts/staking-pool/StakingPool.ths"
+            })
+        });
+
+        const data = await response.json()
+        if (data.error) throw new Error(data.error)
+
+        setModal({ show: true, type: 'success', message: data.output || 'Pool deployed successfully!' })
+        setView('home')
+      } catch (err: any) {
+        setModal({ show: true, type: 'error', message: err.message || 'Failed to deploy pool' })
+      } finally {
+        setIsLoading(false)
+      }
     }
 
-    setIsLoading(true)
-    try {
-      const amountInNano = (parseFloat(stakeAmount) * 1e9).toString()
+    const handleDepositPool = async () => {
+      if (!wallet) return
+      if (!stakeAmount || isNaN(parseFloat(stakeAmount)) || parseFloat(stakeAmount) <= 0) {
+        setModal({ show: true, type: 'error', message: 'Please enter a valid deposit amount' })
+        return
+      }
+      if (!poolAddress) {
+        setModal({ show: true, type: 'error', message: 'Please enter the pool contract address' })
+        return
+      }
 
-      const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/stake`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            private_key: wallet.privateKey,
-            amount: amountInNano,
-            duration: stakeDuration
-          })
-      });
+      setIsLoading(true)
+      try {
+        const amountInNano = (parseFloat(stakeAmount) * 1e9).toString()
 
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
+        const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/call`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+              private_key: wallet.privateKey,
+              to: poolAddress,
+              function: "deposit",
+              amount: amountInNano
+            })
+        });
 
-      setModal({ show: true, type: 'success', message: data.output || 'Staking successful!' })
-      setView('home')
-      setStakeAmount('')
-    } catch (err: any) {
-      setModal({ show: true, type: 'error', message: err.message || 'Failed to stake' })
-    } finally {
-      setIsLoading(false)
+        const data = await response.json()
+        if (data.error) throw new Error(data.error)
+
+        setModal({ show: true, type: 'success', message: data.output || 'Deposit successful!' })
+        setView('home')
+        setStakeAmount('')
+        setPoolAddress('')
+      } catch (err: any) {
+        setModal({ show: true, type: 'error', message: err.message || 'Failed to deposit' })
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }
-
-  const handleUnstake = async () => {
-    if (!wallet) return
-
-    setIsLoading(true)
-    try {
-      const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/unstake`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            private_key: wallet.privateKey,
-          })
-      });
-
-      const data = await response.json()
-      if (data.error) throw new Error(data.error)
-
-      setModal({ show: true, type: 'success', message: data.output || 'Unstaking successful!' })
-      setView('home')
-      setStakedBalance('0')
-    } catch (err: any) {
-      setModal({ show: true, type: 'error', message: err.message || 'Failed to unstake' })
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleMint = () => {
     alert(`Minting NFT: ${nftName}...`)
@@ -412,17 +418,40 @@ function App() {
       <div className="app-container">
         <header className="header" style={{ justifyContent: 'flex-start', gap: 16 }}>
           <ArrowLeft size={20} style={{ cursor: 'pointer' }} onClick={() => setView('home')} />
-          <h2 style={{ fontSize: '1.1rem' }}>Stake THDR</h2>
+          <h2 style={{ fontSize: '1.1rem' }}>Staking Pools</h2>
         </header>
         <main className="main-content">
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <div className="action-icon" style={{ margin: '0 auto', marginBottom: 16 }}>
               <Coins size={24} />
             </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Stake your THDR to secure the network and earn rewards.</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Deploy a new pool or join an existing one by depositing THDR.</p>
           </div>
+          
+          <button
+            className="btn-outline"
+            onClick={handleDeployPool}
+            style={{ width: '100%', padding: '14px', borderRadius: 12, background: 'var(--cyan-dim)', border: '1px solid var(--cyan)', color: 'var(--cyan)', fontWeight: 600, cursor: 'pointer', marginBottom: 24 }}>
+            Deploy New Staking Pool Contract
+          </button>
+
+          <hr style={{ borderColor: 'var(--border)', margin: '24px 0', opacity: 0.5 }} />
+          
+          <h3 style={{ fontSize: '1rem', marginBottom: 16 }}>Deposit into Pool</h3>
+
           <div className="form-group" style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Amount to Stake</label>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Pool Contract Address</label>
+            <input
+              type="text"
+              placeholder="0x..."
+              value={poolAddress}
+              onChange={e => setPoolAddress(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'white', fontSize: '1rem' }}
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Amount to Deposit</label>
             <input
               type="number"
               placeholder="0.0"
@@ -432,59 +461,13 @@ function App() {
             />
             <div style={{ textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 8 }}>Balance: {balance} THDR</div>
           </div>
-          
-          <div className="form-group" style={{ marginBottom: 24 }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Locking Period</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              {[
-                { label: 'Flexible', days: 0, apy: '1.5% APY' },
-                { label: '30 Days', days: 30, apy: '3.5% APY' },
-                { label: '60 Days', days: 60, apy: '6.0% APY' },
-                { label: '90 Days', days: 90, apy: '9.0% APY' }
-              ].map(opt => (
-                <div 
-                  key={opt.days}
-                  onClick={() => setStakeDuration(opt.days)}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: `1px solid ${stakeDuration === opt.days ? 'var(--cyan)' : 'var(--border)'}`,
-                    background: stakeDuration === opt.days ? 'rgba(0, 229, 255, 0.1)' : 'var(--bg-secondary)',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <div style={{ color: stakeDuration === opt.days ? 'white' : 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem' }}>
-                    {opt.label}
-                  </div>
-                  <div style={{ color: stakeDuration === opt.days ? 'var(--cyan)' : 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
-                    {opt.apy}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
           <button
             className="btn-outline"
-            onClick={handleStake}
-            style={{ width: '100%', padding: '14px', borderRadius: 12, background: 'var(--cyan-dim)', border: '1px solid var(--cyan)', color: 'var(--cyan)', fontWeight: 600, cursor: 'pointer', marginBottom: parseFloat(stakedBalance) > 0 ? 12 : 0 }}>
-            Stake Now
+            onClick={handleDepositPool}
+            style={{ width: '100%', padding: '14px', borderRadius: 12, background: 'var(--cyan-dim)', border: '1px solid var(--cyan)', color: 'var(--cyan)', fontWeight: 600, cursor: 'pointer' }}>
+            Deposit to Pool
           </button>
-
-          {parseFloat(stakedBalance) > 0 && (
-            <div style={{ marginTop: 24, padding: 16, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-secondary)', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Active Staked Balance</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 600, color: 'white', marginBottom: 16 }}>{stakedBalance} THDR</div>
-              <button
-                className="btn-outline"
-                onClick={handleUnstake}
-                style={{ width: '100%', padding: '10px', borderRadius: 8, background: 'rgba(255, 60, 60, 0.1)', border: '1px solid #ff3c3c', color: '#ff3c3c', fontWeight: 600, cursor: 'pointer' }}>
-                Unstake
-              </button>
-            </div>
-          )}
         </main>
       </div>
     )
@@ -774,7 +757,7 @@ function App() {
               <div className="action-icon">
                 <Coins size={20} />
               </div>
-              <span>Stake</span>
+              <span>Pools</span>
             </button>
           </section>
 
