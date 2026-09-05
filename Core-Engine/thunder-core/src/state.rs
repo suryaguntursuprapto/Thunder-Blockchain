@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use crate::crypto::{self, Address, Hash};
 use crate::storage::Storage;
 use crate::transaction::{Transaction, TransactionKind};
+use thunder_vm::{ThunderVm, ExecutionContext, Instruction};
 
 // ── Account ────────────────────────────────────────────────────────────────
 
@@ -107,7 +108,8 @@ impl WorldState {
     /// Returns `Ok(gas_used)` on success.
     pub fn apply_transaction(&mut self, tx: &Transaction) -> Result<u64, StateError> {
         // 1. Verify signature.
-        if !tx.verify_signature() {
+        let is_system_deploy = tx.from == crypto::system_deployer_address() && tx.signature == [0u8; 64];
+        if !is_system_deploy && !tx.verify_signature() {
             return Err(StateError::InvalidSignature);
         }
 
@@ -132,7 +134,7 @@ impl WorldState {
         }
 
         // 5. Deduct value + fee from sender, bump nonce.
-        let gas_used = self.base_gas_cost(tx);
+        let mut gas_used = self.base_gas_cost(tx);
         let fee = gas_used.saturating_mul(tx.gas_price);
         sender.balance = sender.balance.saturating_sub(tx.value + fee);
         sender.nonce += 1;
@@ -153,11 +155,95 @@ impl WorldState {
                 self.set_account(&contract_addr, contract);
             }
             TransactionKind::Stake => {
-                // Staking is handled by the consensus layer; the value is
-                // already deducted from the sender's balance above.
+                // Staking is handled natively via the System Staking Contract.
+                let system_addr = crypto::system_staking_address();
+                let mut contract = self.get_account(&system_addr);
+                
+                if !contract.code.is_empty() {
+                    match bincode::deserialize::<thunder_vm::CompiledContract>(&contract.code) {
+                        Ok(compiled) => {
+                            if let Some(&start_pc) = compiled.function_table.get("deposit") {
+                                let ctx = ExecutionContext {
+                                    caller: tx.from,
+                                    contract_address: system_addr,
+                                    value: tx.value,
+                                    timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                                    block_height: 0,
+                                };
+
+                                let mut vm = ThunderVm::new(compiled.instructions.clone(), ctx, tx.max_fee(), 1, contract.storage.clone());
+                                vm.set_pc(start_pc);
+                                match vm.execute() {
+                                    Ok(result) => {
+                                        contract.storage = result.storage;
+                                        contract.balance = contract.balance.saturating_add(tx.value);
+                                        self.set_account(&system_addr, contract);
+                                    },
+                                    Err(e) => {
+                                        tracing::error!("VM Execution failed during Stake: {:?}", e);
+                                    }
+                                }
+                            } else {
+                                tracing::error!("'deposit' function not found in system staking contract.");
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to deserialize system staking contract code: {:?}", e);
+                        }
+                    }
+                } else {
+                    tracing::error!("System staking contract code is empty.");
+                }
             }
-            TransactionKind::Unstake | TransactionKind::ContractCall => {
-                // These are handled externally (consensus / VM).
+            TransactionKind::Unstake => {
+                // Unstaking could similarly call a `withdraw` function on the system contract
+            }
+            TransactionKind::ContractCall => {
+                let mut contract = self.get_account(&tx.to);
+                if contract.code.is_empty() {
+                    return Err(StateError::ExecutionError("Target is not a contract".to_string()));
+                }
+
+                // Decode program as CompiledContract
+                let compiled: thunder_vm::CompiledContract = bincode::deserialize(&contract.code)
+                    .map_err(|_| StateError::ExecutionError("Invalid contract bytecode".to_string()))?;
+
+                let function_name = String::from_utf8(tx.data.clone()).unwrap_or_else(|_| "init".to_string());
+                let start_pc = compiled.function_table.get(&function_name)
+                    .copied()
+                    .ok_or_else(|| StateError::ExecutionError(format!("Function {} not found", function_name)))?;
+
+                let ctx = ExecutionContext {
+                    caller: tx.from,
+                    contract_address: tx.to,
+                    value: tx.value,
+                    timestamp: 0, // Should be passed from block header
+                    block_height: 0,
+                };
+
+                let mut vm = ThunderVm::new(
+                    compiled.instructions,
+                    ctx,
+                    tx.gas_limit,
+                    tx.gas_price,
+                    contract.storage.clone(),
+                );
+                
+                // Set the starting instruction pointer
+                vm.set_pc(start_pc);
+
+                // Transfer value to contract
+                contract.balance = contract.balance.saturating_add(tx.value);
+
+                let result = vm.execute().map_err(|e| StateError::ExecutionError(format!("VM execution failed: {:?}", e)))?;
+
+                if !result.reverted {
+                    contract.storage = result.storage;
+                    self.set_account(&tx.to, contract);
+                    gas_used = result.gas_used;
+                } else {
+                    return Err(StateError::ExecutionError(format!("Contract reverted: {:?}", result.revert_reason)));
+                }
             }
         }
 

@@ -18,10 +18,10 @@ use crate::crypto::{self, Address, Hash, PublicKey, Signature};
 pub enum TransactionKind {
     /// Plain coin transfer.
     Transfer,
-    /// Deploy a new smart contract (data = bytecode).
-    ContractDeploy,
     /// Call an existing smart contract function.
     ContractCall,
+    /// Deploy a new smart contract (data = bytecode).
+    ContractDeploy,
     /// Stake coins to become a validator.
     Stake,
     /// Unstake coins (withdraw from validator set).
@@ -150,7 +150,7 @@ impl Transaction {
             chain_id,
             nonce,
             from,
-            to: [0u8; 20],
+            to: crate::crypto::system_staking_address(),
             value: amount,
             data: duration_days.to_le_bytes().to_vec(),
             gas_limit,
