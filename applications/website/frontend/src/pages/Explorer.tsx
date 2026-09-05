@@ -138,6 +138,11 @@ function ThunderScanTestnet() {
   const [searchError, setSearchError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'overview' | 'validators' | 'api'>('overview')
 
+  const [verifiedSource, setVerifiedSource] = useState<string | null>(null)
+  const [verificationSourceCode, setVerificationSourceCode] = useState<string>('')
+  const [verificationStatus, setVerificationStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [verificationError, setVerificationError] = useState<string | null>(null)
+
   const location = useLocation()
 
   useEffect(() => {
@@ -216,11 +221,24 @@ function ThunderScanTestnet() {
   }, [viewBlockHeight])
 
   useEffect(() => {
-    if (!viewAddress) { setViewAccountDetails(null); return }
+    if (!viewAddress) { setViewAccountDetails(null); setVerifiedSource(null); return }
     const loadAcc = async () => {
       try {
         const res = await fetch(`http://127.0.0.1:5050/api/account/${viewAddress}`)
-        if (res.ok) { setViewAccountDetails(await res.json()) }
+        if (res.ok) { 
+          const accDetails = await res.json()
+          setViewAccountDetails(accDetails)
+          
+          if (accDetails.isContract) {
+            const sourceRes = await fetch(`http://127.0.0.1:5050/api/contract/source/${viewAddress}`)
+            if (sourceRes.ok) {
+              const sourceData = await sourceRes.json()
+              setVerifiedSource(sourceData.sourceCode)
+            } else {
+              setVerifiedSource(null)
+            }
+          }
+        }
         else { setSearchError("Address not found or has no historical transactions."); setViewAddress(null) }
       } catch (err) { }
     }
@@ -245,6 +263,30 @@ function ThunderScanTestnet() {
       setViewBlockHeight(Number(s)); setViewAddress(null); setViewTxHash(null); setViewAll(null);
     }
   }
+
+  const handleVerifySubmit = async () => {
+    if (!viewAddress || !verificationSourceCode.trim()) return;
+    setVerificationStatus('loading');
+    setVerificationError(null);
+    try {
+      const res = await fetch('http://127.0.0.1:5050/api/contract/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: viewAddress, sourceCode: verificationSourceCode })
+      });
+      const data = await res.json();
+      if (res.ok && data.verified) {
+        setVerificationStatus('success');
+        setVerifiedSource(verificationSourceCode);
+      } else {
+        setVerificationStatus('error');
+        setVerificationError(data.error || 'Verification failed. Source code does not match deployed bytecode.');
+      }
+    } catch (e) {
+      setVerificationStatus('error');
+      setVerificationError('An error occurred while verifying the contract.');
+    }
+  };
 
   const timeAgo = (ts: number): string => timeAgoFn(ts);
 
@@ -364,21 +406,55 @@ function ThunderScanTestnet() {
                     <div style={{ marginTop: 24 }}>
                       <div className="scan-section-header">
                         <div className="scan-section-title">Contract Source</div>
-                        <span className="scan-badge" style={{ background: 'rgba(255,180,0,0.1)', color: '#ffb400', border: '1px solid rgba(255,180,0,0.2)' }}>Unverified</span>
+                        {verifiedSource ? (
+                          <span className="scan-badge green">✅ Verified</span>
+                        ) : (
+                          <span className="scan-badge" style={{ background: 'rgba(255,180,0,0.1)', color: '#ffb400', border: '1px solid rgba(255,180,0,0.2)' }}>Unverified</span>
+                        )}
                       </div>
-                      <div style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-dim)' }}>
-                        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
-                          <span><strong>Bytecode Size</strong></span>
-                          <span>{viewAccountDetails.codeLength || 0} bytes</span>
+                      
+                      {verifiedSource ? (
+                        <div style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 8, border: '1px solid var(--border)' }}>
+                          <pre className="mono" style={{ margin: 0, fontSize: 13, color: 'var(--text-primary)', overflowX: 'auto', whiteSpace: 'pre-wrap', maxHeight: 400, overflowY: 'auto' }}>
+                            {verifiedSource}
+                          </pre>
                         </div>
-                        
-                        <div className="mono" style={{ wordBreak: 'break-all', maxHeight: 150, overflowY: 'auto', lineHeight: 1.5, opacity: 0.7 }}>
-                          {viewAccountDetails.codeLength > 0 ? "0x" + Array.from({ length: Math.min(viewAccountDetails.codeLength, 200) }, () => Math.floor(Math.random() * 16).toString(16)).join('') + "..." : "0x"}
+                      ) : (
+                        <div style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-dim)' }}>
+                          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+                            <span><strong>Bytecode Size</strong></span>
+                            <span>{viewAccountDetails.codeLength || 0} bytes</span>
+                          </div>
+                          
+                          <div className="mono" style={{ wordBreak: 'break-all', maxHeight: 100, overflowY: 'auto', lineHeight: 1.5, opacity: 0.5, marginBottom: 16 }}>
+                            {viewAccountDetails.codeLength > 0 ? "0x" + Array.from({ length: Math.min(viewAccountDetails.codeLength, 200) }, () => Math.floor(Math.random() * 16).toString(16)).join('') + "..." : "0x"}
+                          </div>
+                          
+                          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                            <p style={{ marginBottom: 8, color: 'var(--text-primary)' }}>Verify and Publish Contract Source Code</p>
+                            <textarea 
+                              className="scan-input mono" 
+                              style={{ width: '100%', minHeight: 120, padding: 12, borderRadius: 6, background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border)', color: 'var(--text-primary)', marginBottom: 12, resize: 'vertical' }}
+                              placeholder="Paste ThunderScript (.ths) source code here..."
+                              value={verificationSourceCode}
+                              onChange={(e) => setVerificationSourceCode(e.target.value)}
+                            />
+                            {verificationError && (
+                              <div style={{ color: 'var(--red)', marginBottom: 12, fontSize: 12 }}>
+                                ❌ {verificationError}
+                              </div>
+                            )}
+                            <button 
+                              className="scan-btn" 
+                              style={{ padding: '8px 16px', fontSize: 13, background: verificationStatus === 'loading' ? 'var(--text-dim)' : 'var(--cyan)', color: '#000', fontWeight: 600 }}
+                              onClick={handleVerifySubmit}
+                              disabled={verificationStatus === 'loading'}
+                            >
+                              {verificationStatus === 'loading' ? 'Verifying...' : 'Verify & Publish'}
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ marginTop: 12, textAlign: 'center' }}>
-                          <button className="scan-btn" style={{ padding: '6px 12px', fontSize: 12 }}>Verify & Publish Source Code</button>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </>
                 )}
