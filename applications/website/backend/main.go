@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -263,6 +264,54 @@ func main() {
 		})
 	})
 
+	// /api/contract/verify
+	app.Post("/api/contract/verify", func(c *fiber.Ctx) error {
+		type VerifyReq struct {
+			Address    string `json:"address"`
+			SourceCode string `json:"sourceCode"`
+		}
+		var req VerifyReq
+		if err := c.BodyParser(&req); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
+		}
+
+		res, err := fetchRpc("thunder_verifyContract", map[string]interface{}{
+			"address": req.Address,
+			"source":  req.SourceCode,
+		})
+		
+		if err != nil || res == nil {
+			return c.Status(500).JSON(fiber.Map{"error": "Verification RPC failed"})
+		}
+		
+		if verified, ok := res["verified"].(bool); ok && verified {
+			// Save the source code
+			filePath := fmt.Sprintf("./data/verified_contracts/%s.ths", req.Address)
+			os.MkdirAll("./data/verified_contracts", 0755)
+			err = os.WriteFile(filePath, []byte(req.SourceCode), 0644)
+			if err != nil {
+				return c.Status(500).JSON(fiber.Map{"error": "Failed to save verified source code"})
+			}
+			return c.JSON(fiber.Map{"verified": true})
+		}
+		
+		return c.Status(400).JSON(fiber.Map{"error": "Source code does not match deployed bytecode", "verified": false})
+	})
+
+	// /api/contract/source/:address
+	app.Get("/api/contract/source/:address", func(c *fiber.Ctx) error {
+		address := c.Params("address")
+		filePath := fmt.Sprintf("./data/verified_contracts/%s.ths", address)
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return c.Status(404).JSON(fiber.Map{"error": "Source code not found"})
+		}
+		return c.JSON(fiber.Map{
+			"address":    address,
+			"sourceCode": string(content),
+		})
+	})
+
 	// /api/tx/send
 	app.Post("/api/tx/send", func(c *fiber.Ctx) error {
 		type SendReq struct {
@@ -308,9 +357,7 @@ func main() {
 		}
 		
 		pkHex := req.PrivateKey
-		if strings.HasPrefix(pkHex, "0x") {
-			pkHex = pkHex[2:]
-		}
+		pkHex = strings.TrimPrefix(pkHex, "0x")
 
 		seed, err := hex.DecodeString(pkHex)
 		if err != nil || len(seed) != 32 {
@@ -348,9 +395,7 @@ func main() {
 		}
 		
 		pkHex := req.PrivateKey
-		if strings.HasPrefix(pkHex, "0x") {
-			pkHex = pkHex[2:]
-		}
+		pkHex = strings.TrimPrefix(pkHex, "0x")
 
 		seed, err := hex.DecodeString(pkHex)
 		if err != nil || len(seed) != 32 {
@@ -389,9 +434,7 @@ func main() {
 		}
 		
 		pkHex := req.PrivateKey
-		if strings.HasPrefix(pkHex, "0x") {
-			pkHex = pkHex[2:]
-		}
+		pkHex = strings.TrimPrefix(pkHex, "0x")
 
 		cmd := exec.Command("cargo", "run", "--bin", "thunder-cli", "--", "tx", "deploy", "--file", req.File)
 		cmd.Dir = "/Applications/XAMPP/xamppfiles/htdocs/Thunder-Network/Core-Engine"
@@ -427,9 +470,7 @@ func main() {
 		}
 		
 		pkHex := req.PrivateKey
-		if strings.HasPrefix(pkHex, "0x") {
-			pkHex = pkHex[2:]
-		}
+		pkHex = strings.TrimPrefix(pkHex, "0x")
 
 		amt := req.Amount
 		if amt == "" {
