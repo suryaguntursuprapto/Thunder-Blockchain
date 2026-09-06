@@ -136,6 +136,23 @@ function App() {
             }
           }
           setStakedBalance(stakedAmount)
+          
+          const sysRes = await fetch(network.rpcUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              jsonrpc: '2.0',
+              method: 'thunder_getSystemInfo',
+              params: {},
+              id: 3
+            })
+          })
+          const sysData = await sysRes.json()
+          if (sysData.result && sysData.result.system_contracts && sysData.result.system_contracts.StakingPool) {
+            if (!poolAddress || poolAddress === '') {
+              setPoolAddress(sysData.result.system_contracts.StakingPool)
+            }
+          }
 
         } else {
           setBalance('0.00')
@@ -439,10 +456,10 @@ function App() {
           <h3 style={{ fontSize: '1rem', marginBottom: 16 }}>Deposit into Pool</h3>
 
           <div className="form-group" style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Pool Contract Address</label>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Pool Contract Address (Auto-detected System Pool)</label>
             <input
               type="text"
-              placeholder="0x..."
+              placeholder="Detecting StakingPool..."
               value={poolAddress}
               onChange={e => setPoolAddress(e.target.value)}
               style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'white', fontSize: '1rem' }}
