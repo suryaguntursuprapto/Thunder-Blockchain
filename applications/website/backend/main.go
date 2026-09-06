@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
+
+var db *sql.DB
 
 const rpcURL = "http://127.0.0.1:8080"
 
@@ -72,6 +77,46 @@ func fetchRpc(method string, params interface{}) (map[string]interface{}, error)
 }
 
 func main() {
+	// Load .env if exists
+	_ = godotenv.Load("../../.env") // Since main.go runs in backend folder, .env is in root
+
+	// Initialize PostgreSQL
+	dbUser := os.Getenv("DB_USER")
+	if dbUser == "" { dbUser = "thunder" }
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+	if dbName == "" { dbName = "thunder_db" }
+
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=127.0.0.1 port=5432 sslmode=disable", dbUser, dbPassword, dbName)
+	var err error
+	db, err = sql.Open("postgres", connStr)
+	if err != nil {
+		fmt.Printf("❌ Failed to connect to PostgreSQL: %v\n", err)
+	} else {
+		// Wait for postgres to be ready (rudimentary check)
+		for i := 0; i < 5; i++ {
+			if err = db.Ping(); err == nil {
+				break
+			}
+			time.Sleep(2 * time.Second)
+		}
+		
+		if err == nil {
+			_, err = db.Exec(`
+				CREATE TABLE IF NOT EXISTS verified_contracts (
+					address VARCHAR(64) PRIMARY KEY,
+					source_code TEXT NOT NULL,
+					verified_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+				);
+			`)
+			if err != nil {
+				fmt.Printf("❌ Failed to create table: %v\n", err)
+			} else {
+				fmt.Println("✅ PostgreSQL Database Initialized")
+			}
+		}
+	}
+
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true,
 	})
@@ -83,13 +128,29 @@ func main() {
 
 	// Auto-verify system contracts on startup
 	go func() {
+		fmt.Println("⏳ Starting auto-verification routine in 3 seconds...")
 		// Wait a bit for the RPC node to be ready
 		time.Sleep(3 * time.Second)
+		fmt.Println("⏳ Fetching System Contracts from RPC...")
 		res, err := fetchRpc("thunder_getSystemInfo", map[string]interface{}{})
-		if err == nil && res != nil {
-			if resultObj, ok := res["result"].(map[string]interface{}); ok {
-				if systemContracts, ok := resultObj["system_contracts"].(map[string]interface{}); ok {
-					for name, addrObj := range systemContracts {
+		if err != nil {
+			fmt.Printf("❌ Auto-verify fetchRpc error: %v\n", err)
+			return
+		}
+		if res == nil {
+			fmt.Println("❌ Auto-verify fetchRpc returned nil response")
+			return
+		}
+		
+		systemContracts, ok := res["system_contracts"].(map[string]interface{})
+		if !ok {
+			fmt.Println("❌ Auto-verify system_contracts not found or invalid format")
+			return
+		}
+		
+		fmt.Printf("✅ Found %d system contracts. Verifying...\n", len(systemContracts))
+		
+		for name, addrObj := range systemContracts {
 						addr, ok := addrObj.(string)
 						if !ok {
 							continue
@@ -107,10 +168,20 @@ func main() {
 						if sourcePath != "" {
 							sourceBytes, err := os.ReadFile(sourcePath)
 							if err == nil {
-								os.MkdirAll("./data/verified_contracts", 0755)
-								destPath := fmt.Sprintf("./data/verified_contracts/%s.ths", addr)
-								os.WriteFile(destPath, sourceBytes, 0644)
-								fmt.Printf("✅ Automatically verified System Contract: %s at %s\n", name, addr)
+								if db != nil {
+									_, err = db.Exec(`
+										INSERT INTO verified_contracts (address, source_code)
+										VALUES ($1, $2)
+										ON CONFLICT (address) DO UPDATE SET source_code = EXCLUDED.source_code
+									`, addr, string(sourceBytes))
+									if err == nil {
+										fmt.Printf("✅ Automatically verified System Contract: %s at %s (Saved to DB)\n", name, addr)
+									} else {
+										fmt.Printf("❌ Failed to insert into DB: %v\n", err)
+									}
+								} else {
+									fmt.Println("⚠️ DB not available, skipping save.")
+								}
 							} else {
 								fmt.Printf("❌ Failed to read %s: %v\n", name, err)
 							}
@@ -118,11 +189,6 @@ func main() {
 							fmt.Printf("⚠️ Source for System Contract %s not found in %s\n", name, rootDir)
 						}
 					}
-				}
-			}
-		} else {
-			fmt.Printf("❌ Failed to fetch system info: %v\n", err)
-		}
 	}()
 
 	// Serve the genesis file as an endpoint
@@ -332,12 +398,16 @@ func main() {
 		}
 		
 		if verified, ok := res["verified"].(bool); ok && verified {
-			// Save the source code
-			filePath := fmt.Sprintf("./data/verified_contracts/%s.ths", req.Address)
-			os.MkdirAll("./data/verified_contracts", 0755)
-			err = os.WriteFile(filePath, []byte(req.SourceCode), 0644)
-			if err != nil {
-				return c.Status(500).JSON(fiber.Map{"error": "Failed to save verified source code"})
+			// Save the source code to DB
+			if db != nil {
+				_, err = db.Exec(`
+					INSERT INTO verified_contracts (address, source_code)
+					VALUES ($1, $2)
+					ON CONFLICT (address) DO UPDATE SET source_code = EXCLUDED.source_code
+				`, req.Address, req.SourceCode)
+				if err != nil {
+					return c.Status(500).JSON(fiber.Map{"error": "Failed to save verified source code to DB"})
+				}
 			}
 			return c.JSON(fiber.Map{"verified": true})
 		}
@@ -348,14 +418,20 @@ func main() {
 	// /api/contract/source/:address
 	app.Get("/api/contract/source/:address", func(c *fiber.Ctx) error {
 		address := c.Params("address")
-		filePath := fmt.Sprintf("./data/verified_contracts/%s.ths", address)
-		content, err := os.ReadFile(filePath)
-		if err != nil {
-			return c.Status(404).JSON(fiber.Map{"error": "Source code not found"})
+		var sourceCode string
+		
+		if db != nil {
+			err := db.QueryRow("SELECT source_code FROM verified_contracts WHERE address = $1", address).Scan(&sourceCode)
+			if err != nil {
+				return c.Status(404).JSON(fiber.Map{"error": "Source code not found"})
+			}
+		} else {
+			return c.Status(500).JSON(fiber.Map{"error": "Database not initialized"})
 		}
+		
 		return c.JSON(fiber.Map{
 			"address":    address,
-			"sourceCode": string(content),
+			"sourceCode": sourceCode,
 		})
 	})
 

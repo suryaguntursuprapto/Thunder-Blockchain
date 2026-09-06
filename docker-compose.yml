@@ -13,5 +13,20 @@ services:
     command: ["--port", "9000"]
     restart: always
 
+  # PostgreSQL for Block Explorer
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: thunder_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-thunder}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-thunder_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: always
+
 volumes:
   bootnode_data:
+  db_data:

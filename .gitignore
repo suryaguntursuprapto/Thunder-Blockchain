@@ -18,3 +18,5 @@ Thumbs.db
 *.db
 Core-Engine/data/
 *_data/
+.env
+go.work
