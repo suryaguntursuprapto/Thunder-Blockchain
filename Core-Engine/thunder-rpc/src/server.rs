@@ -107,6 +107,24 @@ impl RpcHandler {
                 serde_json::json!({ "chain_id": context.chain_id }),
             ),
 
+            "thunder_getSystemInfo" => {
+                let node = context.node.read().unwrap();
+                let state = node.state.read().unwrap();
+                
+                // Collect system contracts as a JSON object
+                let mut contracts_json = serde_json::Map::new();
+                for (name, address) in &state.system_contracts {
+                    contracts_json.insert(name.clone(), serde_json::json!(thunder_core::crypto::address_to_hex(address)));
+                }
+
+                JsonRpcResponse::success(
+                    request.id,
+                    serde_json::json!({
+                        "system_contracts": contracts_json,
+                    }),
+                )
+            }
+
             "thunder_blockNumber" => {
                 let height = context.node.read().unwrap().height();
                 JsonRpcResponse::success(request.id, serde_json::json!({ "height": height }))

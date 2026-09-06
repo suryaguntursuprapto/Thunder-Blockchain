@@ -731,10 +731,42 @@ fn main() {
                     .unwrap()
                     .subsec_nanos() as u64;
                     
+                let rpc_url = "http://127.0.0.1:8080";
+                let client = reqwest::blocking::Client::new();
+                
+                // Fetch dynamic StakingPool address
+                let sys_payload = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "method": "thunder_getSystemInfo",
+                    "params": {},
+                    "id": 1
+                });
+                let staking_pool_addr = match client.post(rpc_url).json(&sys_payload).send() {
+                    Ok(res) => {
+                        let json: serde_json::Value = res.json().unwrap_or_default();
+                        if let Some(contracts) = json.get("result").and_then(|r| r.get("system_contracts")) {
+                            if let Some(addr_str) = contracts.get("StakingPool").and_then(|a| a.as_str()) {
+                                thunder_core::crypto::address_from_hex(addr_str).expect("Invalid StakingPool address")
+                            } else {
+                                println!("  ❌ StakingPool contract not found in system info");
+                                return;
+                            }
+                        } else {
+                            println!("  ❌ Could not parse system info from RPC");
+                            return;
+                        }
+                    },
+                    Err(e) => {
+                        println!("  ❌ Failed to fetch system info: {}", e);
+                        return;
+                    }
+                };
+
                 let mut tx = thunder_core::transaction::Transaction::new_stake(
                     100, 
                     unique_nonce,
                     key_pair.address(),
+                    staking_pool_addr,
                     amount,
                     duration,
                     gas_limit,
@@ -805,10 +837,42 @@ fn main() {
                     .unwrap()
                     .subsec_nanos() as u64;
                     
+                let rpc_url = "http://127.0.0.1:8080";
+                let client = reqwest::blocking::Client::new();
+                
+                // Fetch dynamic StakingPool address
+                let sys_payload = serde_json::json!({
+                    "jsonrpc": "2.0",
+                    "method": "thunder_getSystemInfo",
+                    "params": {},
+                    "id": 1
+                });
+                let staking_pool_addr = match client.post(rpc_url).json(&sys_payload).send() {
+                    Ok(res) => {
+                        let json: serde_json::Value = res.json().unwrap_or_default();
+                        if let Some(contracts) = json.get("result").and_then(|r| r.get("system_contracts")) {
+                            if let Some(addr_str) = contracts.get("StakingPool").and_then(|a| a.as_str()) {
+                                thunder_core::crypto::address_from_hex(addr_str).expect("Invalid StakingPool address")
+                            } else {
+                                println!("  ❌ StakingPool contract not found in system info");
+                                return;
+                            }
+                        } else {
+                            println!("  ❌ Could not parse system info from RPC");
+                            return;
+                        }
+                    },
+                    Err(e) => {
+                        println!("  ❌ Failed to fetch system info: {}", e);
+                        return;
+                    }
+                };
+
                 let mut tx = thunder_core::transaction::Transaction::new_unstake(
                     100, 
                     unique_nonce,
                     key_pair.address(),
+                    staking_pool_addr,
                     gas_limit,
                     1,
                 );

@@ -44,25 +44,6 @@ pub fn double_hash(data: &[u8]) -> Hash {
     hash_sha256(&hash_sha256(data))
 }
 
-/// The system deployer address
-pub fn system_deployer_address() -> Address {
-    let full_hash = hash_sha256(b"ThunderSystemDeployer");
-    let mut addr = [0u8; 20];
-    addr.copy_from_slice(&full_hash[0..20]);
-    addr
-}
-
-/// The system staking contract deterministic address.
-pub fn system_staking_address() -> Address {
-    let mut data = Vec::new();
-    data.extend_from_slice(&system_deployer_address());
-    data.extend_from_slice(&0u64.to_le_bytes()); // Nonce 0
-    
-    let full_hash = hash_sha256(&data);
-    let mut addr = [0u8; 20];
-    addr.copy_from_slice(&full_hash[0..20]);
-    addr
-}
 
 // ── Key Pair ───────────────────────────────────────────────────────────────
 

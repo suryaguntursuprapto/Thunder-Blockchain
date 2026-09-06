@@ -69,14 +69,22 @@ pub struct WorldState {
     storage: Storage,
     /// In-memory cache of modified accounts (flushed on commit).
     cache: HashMap<Address, Account>,
+    /// Dynamically tracked system contracts (e.g. StakingPool)
+    pub system_contracts: HashMap<String, Address>,
 }
 
 impl WorldState {
     /// Open or create the world state backed by LevelDB at the given path.
     pub fn new(db_path: &str) -> Self {
+        let storage = Storage::new(db_path);
+        let system_contracts = match storage.get(b"system_contracts") {
+            Some(bytes) => bincode::deserialize(&bytes).unwrap_or_default(),
+            None => HashMap::new(),
+        };
         Self {
-            storage: Storage::new(db_path),
+            storage,
             cache: HashMap::new(),
+            system_contracts,
         }
     }
 
@@ -108,8 +116,7 @@ impl WorldState {
     /// Returns `Ok(gas_used)` on success.
     pub fn apply_transaction(&mut self, tx: &Transaction) -> Result<u64, StateError> {
         // 1. Verify signature.
-        let is_system_deploy = tx.from == crypto::system_deployer_address() && tx.signature == [0u8; 64];
-        if !is_system_deploy && !tx.verify_signature() {
+        if !tx.verify_signature() {
             return Err(StateError::InvalidSignature);
         }
 
@@ -156,7 +163,10 @@ impl WorldState {
             }
             TransactionKind::Stake => {
                 // Staking is handled natively via the System Staking Contract.
-                let system_addr = crypto::system_staking_address();
+                let system_addr = match self.system_contracts.get("StakingPool") {
+                    Some(addr) => *addr,
+                    None => return Err(StateError::ExecutionError("StakingPool contract not registered".to_string())),
+                };
                 let mut contract = self.get_account(&system_addr);
                 
                 if !contract.code.is_empty() {
@@ -196,7 +206,11 @@ impl WorldState {
                 }
             }
             TransactionKind::Unstake => {
-                let mut contract = self.get_account(&crate::crypto::system_staking_address());
+                let system_addr = match self.system_contracts.get("StakingPool") {
+                    Some(addr) => *addr,
+                    None => return Err(StateError::ExecutionError("StakingPool contract not registered".to_string())),
+                };
+                let mut contract = self.get_account(&system_addr);
                 if !contract.code.is_empty() {
                     let compiled: Result<thunder_vm::CompiledContract, _> = bincode::deserialize(&contract.code);
                     if let Ok(compiled) = compiled {
@@ -219,7 +233,7 @@ impl WorldState {
                             if staked_amount > 0 {
                                 let ctx = thunder_vm::ExecutionContext {
                                     caller: tx.from,
-                                    contract_address: crate::crypto::system_staking_address(),
+                                    contract_address: system_addr,
                                     value: 0,
                                     timestamp: 0,
                                     block_height: 0,
@@ -231,7 +245,7 @@ impl WorldState {
                                     Ok(result) if !result.reverted => {
                                         contract.storage = result.storage;
                                         contract.balance = contract.balance.saturating_sub(staked_amount);
-                                        self.set_account(&crate::crypto::system_staking_address(), contract);
+                                        self.set_account(&system_addr, contract);
                                         
                                         // Give the tokens back to the user natively
                                         let mut user = self.get_account(&tx.from);
@@ -309,6 +323,9 @@ impl WorldState {
             let value = bincode::serialize(&account).expect("serialize account");
             self.storage.put(&key, &value);
         }
+        
+        let sys_value = bincode::serialize(&self.system_contracts).expect("serialize system contracts");
+        self.storage.put(b"system_contracts", &sys_value);
     }
 
     /// Compute a simple state root (hash of all cached accounts).
@@ -336,7 +353,7 @@ impl WorldState {
         key
     }
 
-    fn derive_contract_address(&self, creator: &Address, nonce: u64) -> Address {
+    pub fn derive_contract_address(&self, creator: &Address, nonce: u64) -> Address {
         let mut data = Vec::new();
         data.extend_from_slice(creator);
         data.extend_from_slice(&nonce.to_le_bytes());

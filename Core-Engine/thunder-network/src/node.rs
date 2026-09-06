@@ -131,16 +131,13 @@ impl Node {
         // If we are at genesis block, inject genesis transactions for Staking Pool
         if self.chain.len() == 1 {
             let mut state = self.state.write().unwrap();
+            
+            let validator_addr = self.key_pair.address();
 
-            // 1. Deploy System Staking Contract
-            let mut deployer = state.get_account(&thunder_core::crypto::system_deployer_address());
-            deployer.balance = 1_000_000_000_000_000;
-            state.set_account(&thunder_core::crypto::system_deployer_address(), deployer);
-
-            // Also mint some balance to the genesis validator so they can stake
-            let mut genesis_validator = state.get_account(&self.key_pair.address());
+            // 1. Mint balance to the genesis validator so they can deploy and stake
+            let mut genesis_validator = state.get_account(&validator_addr);
             genesis_validator.balance = 1_000_000_000_000_000;
-            state.set_account(&self.key_pair.address(), genesis_validator);
+            state.set_account(&validator_addr, genesis_validator);
 
             let possible_paths = [
                 "Core-Engine/contracts/staking-pool/StakingPool.ths",
@@ -156,21 +153,29 @@ impl Node {
                 }
             }
 
+            let mut staking_pool_address = [0u8; 20];
+
             if let Some(source) = contract_source {
                 if let Ok(compiled) = thunder_lang::compile_source(&source) {
                     let bytecode = bincode::serialize(&compiled).unwrap();
                     let mut deploy_tx = Transaction::new_deploy(
                         1, 
                         0, // Nonce 0
-                        thunder_core::crypto::system_deployer_address(), // System deployer
+                        validator_addr, // Deployed by genesis validator
                         bytecode, 
                         50000, 
                         1
                     );
-                    deploy_tx.signature = [0u8; 64]; 
+                    deploy_tx.sign(&self.key_pair); 
                     self.chain[0].transactions.push(deploy_tx.clone());
+                    
+                    staking_pool_address = state.derive_contract_address(&validator_addr, 0);
+                    
                     if let Err(e) = state.apply_transaction(&deploy_tx) {
                         tracing::error!("Genesis deploy error: {:?}", e);
+                    } else {
+                        // Successfully deployed, register it in system_contracts
+                        state.system_contracts.insert("StakingPool".to_string(), staking_pool_address);
                     }
                 } else {
                     tracing::warn!("Failed to compile System Staking Contract at genesis");
@@ -182,9 +187,9 @@ impl Node {
             // 2. Genesis Stake as a ContractCall to 'deposit'
             let mut genesis_tx = Transaction::new_call(
                 1,
-                0, // User's first nonce
-                self.key_pair.address(),
-                thunder_core::crypto::system_staking_address(),
+                1, // User's second nonce (after deploy)
+                validator_addr,
+                staking_pool_address,
                 stake,
                 b"deposit".to_vec(),
                 50000,
@@ -199,6 +204,7 @@ impl Node {
             if let Err(e) = state.apply_transaction(&genesis_tx) {
                 tracing::error!("Genesis stake error: {:?}", e);
             }
+            
             let _ = state.commit();
         }
 
