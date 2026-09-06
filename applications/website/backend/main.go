@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -77,8 +78,54 @@ func main() {
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
+		AllowHeaders: "Origin, Content-Type, Accept",
 	}))
 
+	// Auto-verify system contracts on startup
+	go func() {
+		// Wait a bit for the RPC node to be ready
+		time.Sleep(3 * time.Second)
+		res, err := fetchRpc("thunder_getSystemInfo", map[string]interface{}{})
+		if err == nil && res != nil {
+			if resultObj, ok := res["result"].(map[string]interface{}); ok {
+				if systemContracts, ok := resultObj["system_contracts"].(map[string]interface{}); ok {
+					for name, addrObj := range systemContracts {
+						addr, ok := addrObj.(string)
+						if !ok {
+							continue
+						}
+						// Dynamically search for the contract source in Core-Engine
+						var sourcePath string
+						rootDir := "../../../Core-Engine/contracts"
+						filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+							if err == nil && !info.IsDir() && info.Name() == name+".ths" {
+								sourcePath = path
+							}
+							return nil
+						})
+
+						if sourcePath != "" {
+							sourceBytes, err := os.ReadFile(sourcePath)
+							if err == nil {
+								os.MkdirAll("./data/verified_contracts", 0755)
+								destPath := fmt.Sprintf("./data/verified_contracts/%s.ths", addr)
+								os.WriteFile(destPath, sourceBytes, 0644)
+								fmt.Printf("✅ Automatically verified System Contract: %s at %s\n", name, addr)
+							} else {
+								fmt.Printf("❌ Failed to read %s: %v\n", name, err)
+							}
+						} else {
+							fmt.Printf("⚠️ Source for System Contract %s not found in %s\n", name, rootDir)
+						}
+					}
+				}
+			}
+		} else {
+			fmt.Printf("❌ Failed to fetch system info: %v\n", err)
+		}
+	}()
+
+	// Serve the genesis file as an endpoint
 	// /api/stats
 	app.Get("/api/stats", func(c *fiber.Ctx) error {
 		var wg sync.WaitGroup
