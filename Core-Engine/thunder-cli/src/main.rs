@@ -165,6 +165,18 @@ enum ContractCommands {
         #[arg(short, long, default_value = "init")]
         function: String,
     },
+    /// Verify a deployed contract's source code by sending it to the Explorer Backend.
+    Verify {
+        /// Address of the deployed contract.
+        #[arg(short, long)]
+        address: String,
+        /// Path to the .thunder or .ths file.
+        #[arg(short, long)]
+        path: String,
+        /// URL of the Explorer API.
+        #[arg(long, default_value = "http://127.0.0.1:5050")]
+        api_url: String,
+    },
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────
@@ -964,6 +976,40 @@ fn main() {
                             println!("  ❌ Compilation failed: {}", e);
                         }
                     },
+                    Err(e) => {
+                        println!("  ❌ Could not read file: {}", e);
+                    }
+                }
+            }
+            ContractCommands::Verify { address, path, api_url } => {
+                println!("⚡ Verifying contract at {} using {}", address, path);
+                
+                match std::fs::read_to_string(&path) {
+                    Ok(source) => {
+                        let client = reqwest::blocking::Client::new();
+                        let payload = serde_json::json!({
+                            "address": address,
+                            "sourceCode": source,
+                        });
+                        
+                        let url = format!("{}/api/contract/verify", api_url.trim_end_matches('/'));
+                        println!("  📡 Sending request to {}...", url);
+                        
+                        match client.post(&url).json(&payload).send() {
+                            Ok(response) => {
+                                if response.status().is_success() {
+                                    println!("  ✅ Contract successfully verified and published to Explorer!");
+                                } else {
+                                    let status = response.status();
+                                    let body = response.text().unwrap_or_default();
+                                    println!("  ❌ Verification failed ({}): {}", status, body);
+                                }
+                            }
+                            Err(e) => {
+                                println!("  ❌ Failed to connect to Explorer API: {}", e);
+                            }
+                        }
+                    }
                     Err(e) => {
                         println!("  ❌ Could not read file: {}", e);
                     }
