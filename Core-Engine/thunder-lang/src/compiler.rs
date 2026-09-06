@@ -4,7 +4,7 @@
 //  Compiles a ThunderScript AST into Thunder VM bytecode.
 // ---------------------------------------------------------------------------
 
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 use thunder_vm::opcode::{Instruction, OpCode};
 
@@ -17,8 +17,8 @@ pub use thunder_vm::CompiledContract;
 /// ThunderScript → Thunder VM bytecode compiler.
 pub struct Compiler {
     instructions: Vec<Instruction>,
-    function_table: HashMap<String, usize>,
-    state_slots: HashMap<String, u64>,
+    function_table: BTreeMap<String, usize>,
+    state_slots: BTreeMap<String, u64>,
     /// Local variable name → slot index (per function).
     locals: HashMap<String, usize>,
     next_local: usize,
@@ -32,8 +32,8 @@ impl Compiler {
     pub fn new() -> Self {
         Self {
             instructions: Vec::new(),
-            function_table: HashMap::new(),
-            state_slots: HashMap::new(),
+            function_table: BTreeMap::new(),
+            state_slots: BTreeMap::new(),
             locals: HashMap::new(),
             next_local: 0,
             next_state_slot: 0,
