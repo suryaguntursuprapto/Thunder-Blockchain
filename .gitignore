@@ -20,3 +20,6 @@ Core-Engine/data/
 *_data/
 .env
 go.work
+node.log
+applications/website/backend/backend_app
+applications/website/backend/backend.log

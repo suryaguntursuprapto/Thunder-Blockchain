@@ -284,7 +284,11 @@ impl Node {
                     } else {
                         0
                     };
-                    let _ = self.validator_set.register(tx.from, tx.public_key, tx.value, duration);
+                    if self.validator_set.get(&tx.from).is_some() {
+                        let _ = self.validator_set.add_stake(&tx.from, tx.value);
+                    } else {
+                        let _ = self.validator_set.register(tx.from, tx.public_key, tx.value, duration);
+                    }
                 } else if tx.kind == thunder_core::transaction::TransactionKind::Unstake {
                     let _ = self.validator_set.unregister(&tx.from);
                 }

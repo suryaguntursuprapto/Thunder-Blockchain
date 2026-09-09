@@ -5,9 +5,11 @@ import '../App.css'
 
 export function Faucet() {
   const [address, setAddress] = useState('')
+  const [amount, setAmount] = useState('1000')
   const [isLoading, setIsLoading] = useState(false)
   const [result, setResult] = useState<{ type: 'success' | 'error', message: string, txHash?: string } | null>(null)
   const [isFocused, setIsFocused] = useState(false)
+  const [isAmountFocused, setIsAmountFocused] = useState(false)
 
   const handleRequest = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,12 +22,19 @@ export function Faucet() {
     setResult(null)
 
     try {
+      const parsedAmount = parseFloat(amount)
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        setResult({ type: 'error', message: 'Invalid amount. Must be greater than 0.' })
+        setIsLoading(false)
+        return
+      }
+
       const res = await fetch('http://127.0.0.1:5050/api/faucet', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ address })
+        body: JSON.stringify({ address, amount: parsedAmount })
       })
 
       const data = await res.json()
@@ -36,7 +45,7 @@ export function Faucet() {
 
       setResult({
         type: 'success',
-        message: '1000 THDR successfully sent to your wallet!',
+        message: `${parsedAmount} THDR successfully sent to your wallet!`,
         txHash: data.tx_hash
       })
       setAddress('')
@@ -155,6 +164,38 @@ export function Faucet() {
                   </div>
                 </div>
 
+                <div style={{ marginBottom: '30px', textAlign: 'left' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', marginBottom: '12px', color: '#a0aec0', fontSize: '14px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    <Droplet size={16} style={{ marginRight: '8px', color: 'var(--cyan)' }} />
+                    Amount (THDR)
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="number"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      onFocus={() => setIsAmountFocused(true)}
+                      onBlur={() => setIsAmountFocused(false)}
+                      placeholder="e.g. 1000"
+                      min="1"
+                      style={{
+                        width: '100%',
+                        padding: '18px 24px',
+                        borderRadius: '16px',
+                        border: '1px solid',
+                        borderColor: isAmountFocused ? 'rgba(0, 229, 255, 0.5)' : 'rgba(255,255,255,0.1)',
+                        background: isAmountFocused ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.2)',
+                        color: 'white',
+                        fontSize: '16px',
+                        fontFamily: 'monospace',
+                        outline: 'none',
+                        transition: 'all 0.3s ease',
+                        boxShadow: isAmountFocused ? 'inset 0 2px 10px rgba(0,0,0,0.5), 0 0 20px rgba(0,229,255,0.1)' : 'inset 0 2px 5px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                  </div>
+                </div>
+
                 <button 
                   type="submit" 
                   disabled={isLoading || !address}
@@ -183,7 +224,7 @@ export function Faucet() {
                     </>
                   ) : (
                     <>
-                      Receive 1000 THDR <ArrowRight size={18} />
+                      Receive {amount || '0'} THDR <ArrowRight size={18} />
                     </>
                   )}
                 </button>
@@ -246,8 +287,8 @@ export function Faucet() {
             </div>
             <div className="feature-card reveal" style={{ opacity: 1, transform: 'none', background: 'rgba(15, 15, 20, 0.4)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.03)', transition: 'transform 0.3s ease, box-shadow 0.3s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,229,255,0.1)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
               <div className="feature-icon" style={{ background: 'rgba(0,229,255,0.1)' }}><Droplet size={24} color="#00e5ff" /></div>
-              <h3 style={{ fontSize: '18px', marginBottom: '12px' }}>1000 THDR Quota</h3>
-              <p style={{ color: '#8b9bb4', fontSize: '15px', lineHeight: '1.6' }}>Each request automatically dispenses 1000 THDR. Designed for developers building robust dApps.</p>
+              <h3 style={{ fontSize: '18px', marginBottom: '12px' }}>Flexible Quota</h3>
+              <p style={{ color: '#8b9bb4', fontSize: '15px', lineHeight: '1.6' }}>Request exactly the amount of THDR you need. Designed for developers building robust dApps.</p>
             </div>
             <div className="feature-card reveal" style={{ opacity: 1, transform: 'none', background: 'rgba(15, 15, 20, 0.4)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.03)', transition: 'transform 0.3s ease, box-shadow 0.3s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(255,255,255,0.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = 'none'; }}>
               <div className="feature-icon" style={{ background: 'rgba(255,255,255,0.05)' }}><ExternalLink size={24} color="#fff" /></div>

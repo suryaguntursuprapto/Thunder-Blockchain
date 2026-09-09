@@ -623,17 +623,22 @@ func main() {
 	// /api/faucet
 	app.Post("/api/faucet", func(c *fiber.Ctx) error {
 		type FaucetReq struct {
-			Address string `json:"address"`
+			Address string  `json:"address"`
+			Amount  float64 `json:"amount"`
 		}
 		var req FaucetReq
 		if err := c.BodyParser(&req); err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 		}
 
-		// Hardcoded faucet rules: 1000 THDR per request (scale to nano-THDR)
+		if req.Amount <= 0 {
+			req.Amount = 1000 // default
+		}
+		nanoAmount := uint64(req.Amount * 1_000_000_000)
+
 		res, err := fetchRpc("thunder_requestFaucet", map[string]interface{}{
 			"address":   req.Address,
-			"amount":    1000000000000,
+			"amount":    nanoAmount,
 			"gas_price": 1,
 		})
 
