@@ -222,7 +222,7 @@ fn main() {
                 let mut node = Node::new(key_pair, config);
 
                 // Register as validator with genesis stake.
-                node.register_as_validator(100_000_000_000_000)
+                node.register_as_validator(200_000_000_000_000_000)
                     .expect("failed to register as validator");
 
                 // Give the node's account some initial coins.

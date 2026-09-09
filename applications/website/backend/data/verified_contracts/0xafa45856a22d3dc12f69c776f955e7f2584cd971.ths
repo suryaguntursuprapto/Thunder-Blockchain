@@ -1,0 +1,43 @@
+contract TIDR_Token {
+    state owner: address;
+    state balances: map<address, u64>;
+    state total_supply: u64;
+
+    fn init() {
+        self.owner = caller();
+        self.balances[caller()] = 0;
+        self.total_supply = 0;
+    }
+
+    fn transfer(to: address, amount: u64) {
+        let sender_bal = self.balances[caller()];
+        require(sender_bal >= amount, "Insufficient balance");
+        self.balances[caller()] = sender_bal - amount;
+        self.balances[to] = self.balances[to] + amount;
+        emit Transfer(caller(), to, amount);
+    }
+
+    fn mint(to: address, amount: u64) {
+        require(caller() == self.owner, "Only treasury admin can mint TIDR");
+        self.balances[to] = self.balances[to] + amount;
+        self.total_supply = self.total_supply + amount;
+        emit Mint(to, amount);
+    }
+
+    fn burn(from: address, amount: u64) {
+        require(caller() == self.owner, "Only treasury admin can burn TIDR");
+        let target_bal = self.balances[from];
+        require(target_bal >= amount, "Insufficient balance to burn");
+        self.balances[from] = target_bal - amount;
+        self.total_supply = self.total_supply - amount;
+        emit Burn(from, amount);
+    }
+
+    fn balance_of(addr: address) -> u64 {
+        return self.balances[addr];
+    }
+
+    fn get_total_supply() -> u64 {
+        return self.total_supply;
+    }
+}

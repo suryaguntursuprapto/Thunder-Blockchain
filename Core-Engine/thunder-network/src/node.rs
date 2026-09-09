@@ -136,7 +136,7 @@ impl Node {
 
             // 1. Mint balance to the genesis validator so they can deploy and stake
             let mut genesis_validator = state.get_account(&validator_addr);
-            genesis_validator.balance = 1_000_000_000_000_000;
+            genesis_validator.balance = 1_000_000_000_000_000_000; // 1 Billion THDR
             state.set_account(&validator_addr, genesis_validator);
 
             let possible_paths = [
@@ -290,10 +290,18 @@ impl Node {
                         let _ = self.validator_set.register(tx.from, tx.public_key, tx.value, duration);
                     }
                 } else if tx.kind == thunder_core::transaction::TransactionKind::Unstake {
+                    let genesis_miner = self.chain.first().map(|b| b.header.validator).unwrap_or([0u8; 20]);
+                    if tx.from == genesis_miner {
+                        tracing::warn!("Genesis node attempted to unstake. Transaction rejected (Locked Stake).");
+                        continue; // Skip applying this transaction
+                    }
                     let _ = self.validator_set.unregister(&tx.from);
                 }
                 
-                let _ = self.state.write().unwrap().apply_transaction(&tx);
+                let result = self.state.write().unwrap().apply_transaction(&tx);
+                if let Err(e) = result {
+                    tracing::error!("Transaction execution failed for tx {:?}: {:?}", tx.hash(), e);
+                }
                 block_txs.push(tx);
             }
         }
@@ -338,45 +346,40 @@ impl Node {
                                                   // The remaining 50% is Cryptographically BURNED (Never minted into existence)
 
         // -------------------------------------------------------------
-        // DPoS Yield Splitting (Yield Farming / Retail Validation)
+        // DPoS Yield Splitting & Genesis Tokenomics
         // -------------------------------------------------------------
-        let mut val_account = self
-            .state
-            .read()
-            .unwrap()
-            .get_account(&self.key_pair.address());
-
-        let commission = (validator_reward * 5) / 100; // 5% Node Server Commission
-        let delegator_pool = validator_reward - commission; // 95% Pro-rata Fractional Yield
-
-        // 3 Dummy Retail Delegators (A = 60%, B = 30%, C = 10%)
-        let addr_a = [0xAA; 20];
-        let addr_b = [0xBB; 20];
-        let addr_c = [0xCC; 20];
-
-        let payout_a = (delegator_pool * 60) / 100;
-        let payout_b = (delegator_pool * 30) / 100;
-        let payout_c = delegator_pool - payout_a - payout_b;
-
-        {
+        
+        let genesis_miner = self.chain.first().map(|b| b.header.validator).unwrap_or([0u8; 20]);
+        let is_genesis_node = genesis_miner == self.key_pair.address();
+        
+        if is_genesis_node {
+            // Genesis Node Tokenomics: 50% Burned, 50% Distributed to other validators
+            // The 50% is already set in `validator_reward` (combined_pool / 2)
+            
+            let other_validators: Vec<_> = self.validator_set.active_validators()
+                .into_iter()
+                .filter(|v| v.address != self.key_pair.address())
+                .collect();
+                
+            let total_other_stake: u64 = other_validators.iter().map(|v| v.stake).sum();
+            
             let mut state = self.state.write().unwrap();
-
-            // 1. Validator purely sucks up Commission fees
-            val_account.balance = val_account.balance.saturating_add(commission);
+            
+            if total_other_stake > 0 {
+                for val in other_validators {
+                    let proportion = (val.stake as u128 * validator_reward as u128) / total_other_stake as u128;
+                    let mut acc = state.get_account(&val.address);
+                    acc.balance = acc.balance.saturating_add(proportion as u64);
+                    state.set_account(&val.address, acc);
+                }
+            }
+            // If no other validators, the reward is effectively burned (not assigned to anyone).
+        } else {
+            // Normal Validator Tokenomics: Takes 100% of the validator_reward
+            let mut state = self.state.write().unwrap();
+            let mut val_account = state.get_account(&self.key_pair.address());
+            val_account.balance = val_account.balance.saturating_add(validator_reward);
             state.set_account(&self.key_pair.address(), val_account);
-
-            // 2. Retail Delegators receive their passive yield fractions!
-            let mut acc_a = state.get_account(&addr_a);
-            acc_a.balance = acc_a.balance.saturating_add(payout_a);
-            state.set_account(&addr_a, acc_a);
-
-            let mut acc_b = state.get_account(&addr_b);
-            acc_b.balance = acc_b.balance.saturating_add(payout_b);
-            state.set_account(&addr_b, acc_b);
-
-            let mut acc_c = state.get_account(&addr_c);
-            acc_c.balance = acc_c.balance.saturating_add(payout_c);
-            state.set_account(&addr_c, acc_c);
         }
 
         let state_root = self.state.read().unwrap().compute_state_root();

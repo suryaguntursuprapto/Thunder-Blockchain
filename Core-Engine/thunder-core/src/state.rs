@@ -159,6 +159,35 @@ impl WorldState {
                 let mut contract = Account::new();
                 contract.code = tx.data.clone();
                 contract.code_hash = crypto::hash_sha256(&tx.data);
+                
+                // Automatically execute 'init' function if it exists
+                if let Ok(compiled) = bincode::deserialize::<thunder_vm::CompiledContract>(&tx.data) {
+                    if let Some(&start_pc) = compiled.function_table.get("init") {
+                        let ctx = ExecutionContext {
+                            caller: tx.from,
+                            contract_address: contract_addr,
+                            value: tx.value,
+                            timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+                            block_height: 0,
+                        };
+
+                        let mut vm = ThunderVm::new(compiled.instructions.clone(), ctx, tx.max_fee(), 1, contract.storage.clone());
+                        vm.set_pc(start_pc);
+                        match vm.execute() {
+                            Ok(result) => {
+                                if !result.reverted {
+                                    contract.storage = result.storage;
+                                } else {
+                                    tracing::error!("Contract init reverted: {:?}", result.revert_reason);
+                                }
+                            },
+                            Err(e) => {
+                                tracing::error!("VM Execution failed during contract init: {:?}", e);
+                            }
+                        }
+                    }
+                }
+                
                 self.set_account(&contract_addr, contract);
             }
             TransactionKind::Stake => {

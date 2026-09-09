@@ -1,8 +1,7 @@
-version: '3.8'
-
 services:
   # Bootnode (Genesis Node)
   bootnode:
+    build: .
     image: thunder_node:latest
     container_name: thunder_bootnode
     ports:
