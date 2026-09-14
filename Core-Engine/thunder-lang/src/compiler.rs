@@ -10,7 +10,6 @@ use thunder_vm::opcode::{Instruction, OpCode};
 
 use crate::ast::*;
 
-use serde::{Serialize, Deserialize};
 
 pub use thunder_vm::CompiledContract;
 
