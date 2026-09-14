@@ -110,6 +110,13 @@ impl Node {
             ));
         }
 
+        // --- Anti-Spam Mempool Rate Limiting ---
+        let max_tx_per_sender = 5;
+        let sender_tx_count = self.mempool.iter().filter(|t| t.from == tx.from).count();
+        if sender_tx_count >= max_tx_per_sender {
+            return Err(format!("Mempool rate limit exceeded for address {:?}: Max {} pending transactions allowed", tx.from, max_tx_per_sender));
+        }
+
         self.mempool.push(tx);
         Ok(())
     }
@@ -137,12 +144,55 @@ impl Node {
             // 1. Mint balance to the genesis validator so they can deploy and stake
             let mut genesis_validator = state.get_account(&validator_addr);
             genesis_validator.balance = 1_000_000_000_000_000_000; // 1 Billion THDR
-            state.set_account(&validator_addr, genesis_validator);
+            state.set_account(&validator_addr, genesis_validator);            // Deploy GenesisPool for locked genesis stake
+            let genesis_paths = [
+                "Core-Engine/contracts/genesis/genesiscontract.ths",
+                "../Core-Engine/contracts/genesis/genesiscontract.ths",
+                "/app/Core-Engine/contracts/genesis/genesiscontract.ths",
+            ];
+            
+            let mut genesis_contract_source = None;
+            for path in &genesis_paths {
+                if let Ok(source) = std::fs::read_to_string(path) {
+                    genesis_contract_source = Some(source);
+                    break;
+                }
+            }
 
+            let mut genesis_pool_address = [0u8; 20];
+            if let Some(source) = genesis_contract_source {
+                if let Ok(compiled) = thunder_lang::compile_source(&source) {
+                    let bytecode = bincode::serialize(&compiled).unwrap();
+                    let mut deploy_tx = Transaction::new_deploy(
+                        1, 
+                        0, // Nonce 0
+                        validator_addr, 
+                        bytecode, 
+                        50000, 
+                        1
+                    );
+                    deploy_tx.sign(&self.key_pair); 
+                    self.chain[0].transactions.push(deploy_tx.clone());
+                    
+                    genesis_pool_address = state.derive_contract_address(&validator_addr, 0);
+                    
+                    if let Err(e) = state.apply_transaction(&deploy_tx) {
+                        tracing::error!("Genesis deploy error: {:?}", e);
+                    } else {
+                        state.system_contracts.insert("GenesisPool".to_string(), genesis_pool_address);
+                    }
+                } else {
+                    tracing::warn!("Failed to compile GenesisPool Contract at genesis");
+                }
+            } else {
+                tracing::warn!("GenesisPool Contract source not found");
+            }
+
+            // Deploy public StakingPool for validators
             let possible_paths = [
                 "Core-Engine/contracts/staking-pool/StakingPool.ths",
-                "contracts/staking-pool/StakingPool.ths",
                 "../Core-Engine/contracts/staking-pool/StakingPool.ths",
+                "/app/Core-Engine/contracts/staking-pool/StakingPool.ths",
             ];
             
             let mut contract_source = None;
@@ -154,14 +204,13 @@ impl Node {
             }
 
             let mut staking_pool_address = [0u8; 20];
-
             if let Some(source) = contract_source {
                 if let Ok(compiled) = thunder_lang::compile_source(&source) {
                     let bytecode = bincode::serialize(&compiled).unwrap();
                     let mut deploy_tx = Transaction::new_deploy(
                         1, 
-                        0, // Nonce 0
-                        validator_addr, // Deployed by genesis validator
+                        1, // Nonce 1
+                        validator_addr, 
                         bytecode, 
                         50000, 
                         1
@@ -169,12 +218,11 @@ impl Node {
                     deploy_tx.sign(&self.key_pair); 
                     self.chain[0].transactions.push(deploy_tx.clone());
                     
-                    staking_pool_address = state.derive_contract_address(&validator_addr, 0);
+                    staking_pool_address = state.derive_contract_address(&validator_addr, 1);
                     
                     if let Err(e) = state.apply_transaction(&deploy_tx) {
-                        tracing::error!("Genesis deploy error: {:?}", e);
+                        tracing::error!("StakingPool deploy error: {:?}", e);
                     } else {
-                        // Successfully deployed, register it in system_contracts
                         state.system_contracts.insert("StakingPool".to_string(), staking_pool_address);
                     }
                 } else {
@@ -184,12 +232,12 @@ impl Node {
                 tracing::warn!("System Staking Contract source not found");
             }
 
-            // 2. Genesis Stake as a ContractCall to 'deposit'
+            // 2. Genesis Stake as a ContractCall to 'deposit' on GenesisPool
             let mut genesis_tx = Transaction::new_call(
                 1,
-                1, // User's second nonce (after deploy)
+                2, // User's third nonce (after both deploys)
                 validator_addr,
-                staking_pool_address,
+                genesis_pool_address,
                 stake,
                 b"deposit".to_vec(),
                 50000,
@@ -317,21 +365,23 @@ impl Node {
 
         let prev_block = self.latest_block();
 
-        // --- Dynamic Tokenomics (EIP-1559) ---
+        // --- Dynamic Tokenomics (EIP-1559 Overhaul) ---
         let mut base_fee = 1; // 1 Gwei min
         let mut total_gas_burned = 0;
 
-        // Network Congestion / aBFT Capacity Curve (PoS / High-TPS optimized)
-        // Instead of PoW time-targets, aBFT fees surge ONLY if the block hits its computational byte limits.
-        let target_capacity = 1000; // Expected average comfortable txs per batch
+        // Network Congestion / aBFT Capacity Curve (High-TPS optimized)
+        let target_capacity = 10_000; // Expected average comfortable txs per batch
 
         if block_txs.len() as u64 > target_capacity {
-            // High Congestion Penalty Surge (Block capacity exceeded normal bounds)
+            // High Congestion Penalty Surge (Logarithmic Growth)
             let overflow = block_txs.len() as u64 - target_capacity;
-            base_fee += overflow * 2;
-        } else if block_txs.len() < 100 {
-            // Cool Down Low Network Traffic
-            base_fee = 1;
+            base_fee += 1 + (overflow / 1000); // Super cheap! Only +1 Gwei per 1,000 excess TXs
+        }
+
+        // Hard Cap Ceiling - Anti Spam Pricing Shield
+        let max_base_fee = 10;
+        if base_fee > max_base_fee {
+            base_fee = max_base_fee;
         }
 
         // Tally Total Burnt Gas

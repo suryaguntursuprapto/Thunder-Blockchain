@@ -20,6 +20,7 @@ RUN apt-get update && apt-get install -y ca-certificates ufw && rm -rf /var/lib/
 
 # Copy the compiled binary from the builder
 COPY --from=builder /app/target/release/thunder-cli /usr/local/bin/thunder-cli
+COPY --from=builder /app/Core-Engine/contracts /app/Core-Engine/contracts
 
 # Set the entrypoint to the CLI node runner
 ENTRYPOINT ["thunder-cli", "node", "start"]
