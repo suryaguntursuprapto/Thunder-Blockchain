@@ -10,7 +10,7 @@ pub use vm::{ThunderVm, ExecutionContext};
 pub use opcode::{Instruction, OpCode};
 
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::BTreeMap;
 
 /// Compiler output: a list of instructions plus metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
