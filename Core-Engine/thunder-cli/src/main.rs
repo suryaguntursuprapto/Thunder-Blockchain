@@ -181,6 +181,40 @@ enum ContractCommands {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
+fn prompt_for_keypair() -> Option<KeyPair> {
+    use std::io::{self, Write};
+    print!("  [🔑] Enter Wallet Seed Phrase (or Hex Secret Key): ");
+    io::stdout().flush().unwrap();
+    let mut input = String::new();
+    io::stdin().read_line(&mut input).unwrap();
+    let input = input.trim();
+
+    if input.contains(' ') {
+        // It's likely a 12-word seed phrase
+        match thunder_core::crypto::derive_keypair_from_seed(input, 0) {
+            Ok(kp) => Some(kp),
+            Err(e) => {
+                println!("  ❌ Error: {}", e);
+                None
+            }
+        }
+    } else {
+        // Assume it's a hex secret key
+        let secret_bytes = match hex::decode(input) {
+            Ok(b) if b.len() == 32 => {
+                let mut arr = [0u8; 32];
+                arr.copy_from_slice(&b);
+                arr
+            }
+            _ => {
+                println!("  ❌ Error: Invalid seed phrase or secret key format.");
+                return None;
+            }
+        };
+        Some(thunder_core::crypto::KeyPair::from_secret_bytes(&secret_bytes))
+    }
+}
+
 fn main() {
     tracing_subscriber::fmt()
         .with_target(false)
@@ -616,26 +650,10 @@ fn main() {
                 println!("⚡ Initiating Transaction to {}", to);
                 println!("  To authenticate, please provide your Wallet Secret Key.");
 
-                use std::io::{self, Write};
-                print!("  [🔑] Enter Secret Key (Hex): ");
-                io::stdout().flush().unwrap();
-                let mut secret_input = String::new();
-                io::stdin().read_line(&mut secret_input).unwrap();
-                let secret_input = secret_input.trim();
-
-                let secret_bytes = match hex::decode(secret_input) {
-                    Ok(b) if b.len() == 32 => {
-                        let mut arr = [0u8; 32];
-                        arr.copy_from_slice(&b);
-                        arr
-                    }
-                    _ => {
-                        println!("  ❌ Invalid Secret Key length (expected 32-byte hex).");
-                        return;
-                    }
+                let key_pair = match prompt_for_keypair() {
+                    Some(kp) => kp,
+                    None => return,
                 };
-
-                let key_pair = KeyPair::from_secret_bytes(&secret_bytes);
                 let to_addr = match thunder_core::crypto::address_from_hex(&to) {
                     Ok(addr) => addr,
                     Err(_) => {
@@ -700,26 +718,10 @@ fn main() {
                 println!("⚡ Initiating Stake Transaction");
                 println!("  To authenticate, please provide your Wallet Secret Key.");
 
-                use std::io::{self, Write};
-                print!("  [🔑] Enter Secret Key (Hex): ");
-                io::stdout().flush().unwrap();
-                let mut secret_input = String::new();
-                io::stdin().read_line(&mut secret_input).unwrap();
-                let secret_input = secret_input.trim();
-
-                let secret_bytes = match hex::decode(secret_input) {
-                    Ok(b) if b.len() == 32 => {
-                        let mut arr = [0u8; 32];
-                        arr.copy_from_slice(&b);
-                        arr
-                    }
-                    _ => {
-                        println!("  ❌ Invalid Secret Key length (expected 32-byte hex).");
-                        return;
-                    }
+                let key_pair = match prompt_for_keypair() {
+                    Some(kp) => kp,
+                    None => return,
                 };
-
-                let key_pair = KeyPair::from_secret_bytes(&secret_bytes);
 
                 println!(
                     "  ↳ Signing stake transaction as 0x{}...",
@@ -811,26 +813,10 @@ fn main() {
                 println!("\n  ⚡ Initiating Unstake Transaction...");
                 println!("  To authenticate, please provide your Wallet Secret Key.");
 
-                use std::io::{self, Write};
-                print!("  [🔑] Enter Secret Key (Hex): ");
-                io::stdout().flush().unwrap();
-                let mut secret_input = String::new();
-                io::stdin().read_line(&mut secret_input).unwrap();
-                let secret_input = secret_input.trim();
-
-                let secret_bytes = match hex::decode(secret_input) {
-                    Ok(b) if b.len() == 32 => {
-                        let mut arr = [0u8; 32];
-                        arr.copy_from_slice(&b);
-                        arr
-                    }
-                    _ => {
-                        println!("  ❌ Invalid Secret Key length or format.");
-                        return;
-                    }
+                let key_pair = match prompt_for_keypair() {
+                    Some(kp) => kp,
+                    None => return,
                 };
-
-                let key_pair = thunder_core::crypto::KeyPair::from_secret_bytes(&secret_bytes);
                 
                 let unique_nonce = std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -912,15 +898,10 @@ fn main() {
             }
             TxCommands::Deploy { file, gas_limit } => {
                 println!("  To authenticate, please provide your Wallet Secret Key.");
-                use std::io::{self, Write};
-                print!("  [🔑] Enter Secret Key (Hex): ");
-                io::stdout().flush().unwrap();
-                let mut secret_input = String::new();
-                io::stdin().read_line(&mut secret_input).unwrap();
-                let secret_bytes = hex::decode(secret_input.trim()).unwrap();
-                let mut secret_array = [0u8; 32];
-                secret_array.copy_from_slice(&secret_bytes);
-                let key_pair = thunder_core::crypto::KeyPair::from_secret_bytes(&secret_array);
+                let key_pair = match prompt_for_keypair() {
+                    Some(kp) => kp,
+                    None => return,
+                };
                 
                 let source = std::fs::read_to_string(&file).expect("Could not read file");
                 let compiled = compile_source(&source).expect("Compilation failed");
@@ -956,15 +937,10 @@ fn main() {
             TxCommands::Call { to, function, amount, gas_limit } => {
                 println!("\n  ⚡ Initiating Contract Call Transaction...");
                 println!("  To authenticate, please provide your Wallet Secret Key.");
-                use std::io::{self, Write};
-                print!("  [🔑] Enter Secret Key (Hex): ");
-                io::stdout().flush().unwrap();
-                let mut secret_input = String::new();
-                io::stdin().read_line(&mut secret_input).unwrap();
-                let secret_bytes = hex::decode(secret_input.trim()).unwrap();
-                let mut secret_array = [0u8; 32];
-                secret_array.copy_from_slice(&secret_bytes);
-                let key_pair = thunder_core::crypto::KeyPair::from_secret_bytes(&secret_array);
+                let key_pair = match prompt_for_keypair() {
+                    Some(kp) => kp,
+                    None => return,
+                };
                 
                 let to_addr = thunder_core::crypto::address_from_hex(&to).expect("Invalid to address");
                 let unique_nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos() as u64;
