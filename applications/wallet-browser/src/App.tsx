@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Send as SendIcon, ArrowDownToLine, Coins, LayoutGrid, ChevronDown, ArrowLeft, LogOut, Copy, Check, X } from 'lucide-react'
+import { Send as SendIcon, ArrowDownToLine, Coins, LayoutGrid, ChevronDown, ArrowLeft, LogOut, Copy, Check, X, AlertTriangle } from 'lucide-react'
 import Onboarding from './Onboarding'
 import './index.css'
 
@@ -33,7 +33,7 @@ function App() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [isLoadingActivity, setIsLoadingActivity] = useState(false)
   const [stakedBalance, setStakedBalance] = useState('0')
-  const [modal, setModal] = useState<{ show: boolean, type: 'success' | 'error', message: string }>({ show: false, type: 'success', message: '' })
+  const [modal, setModal] = useState<{ show: boolean, type: 'success' | 'error' | 'confirm', message: string, onConfirm?: () => void }>({ show: false, type: 'success', message: '' })
 
   useEffect(() => {
     const loadWallets = async () => {
@@ -225,59 +225,41 @@ function App() {
       return
     }
 
-    try {
-      const amountInNano = Math.floor(parseFloat(sendAmount) * 1e9).toString()
-      console.log(`Sending ${sendAmount} THDR (${amountInNano} nano) to ${sendTo}...`)
-      const res = await fetch('http://127.0.0.1:5050/api/tx/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: sendTo,
-          amount: amountInNano,
-          private_key: wallet.privateKey.replace('0x', '') // Pass raw hex without 0x
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setModal({ show: true, type: 'success', message: `Successfully sent ${sendAmount} THDR to ${sendTo.substring(0, 8)}...` })
-        setSendTo('');
-        setSendAmount('');
-        setView('home');
-        setActiveTab('activity');
-      } else {
-        setModal({ show: true, type: 'error', message: data.error || 'Unknown error occurred while sending.' })
-      }
-    } catch (err: any) {
-      console.error(err);
-      setModal({ show: true, type: 'error', message: err.message || 'Network error occurred.' })
-    }
-  }
-
-    const handleDeployPool = async () => {
-      if (!wallet) return
-      setIsLoading(true)
-      try {
-        const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/deploy`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              private_key: wallet.privateKey,
-              file: "contracts/staking-pool/StakingPool.ths"
+    setModal({
+      show: true,
+      type: 'confirm',
+      message: `Are you sure you want to send ${sendAmount} THDR to ${sendTo.substring(0, 8)}...?`,
+      onConfirm: async () => {
+        setModal({ ...modal, show: false })
+        try {
+          const amountInNano = Math.floor(parseFloat(sendAmount) * 1e9).toString()
+          console.log(`Sending ${sendAmount} THDR (${amountInNano} nano) to ${sendTo}...`)
+          const res = await fetch('http://127.0.0.1:5050/api/tx/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: sendTo,
+              amount: amountInNano,
+              private_key: wallet.privateKey.replace('0x', '') // Pass raw hex without 0x
             })
-        });
+          });
 
-        const data = await response.json()
-        if (data.error) throw new Error(data.error)
-
-        setModal({ show: true, type: 'success', message: data.output || 'Pool deployed successfully!' })
-        setView('home')
-      } catch (err: any) {
-        setModal({ show: true, type: 'error', message: err.message || 'Failed to deploy pool' })
-      } finally {
-        setIsLoading(false)
+          const data = await res.json();
+          if (res.ok && data.success) {
+            setModal({ show: true, type: 'success', message: `Successfully sent ${sendAmount} THDR to ${sendTo.substring(0, 8)}...` })
+            setSendTo('');
+            setSendAmount('');
+            setView('home');
+            setActiveTab('activity');
+          } else {
+            setModal({ show: true, type: 'error', message: data.error || 'Unknown error occurred while sending.' })
+          }
+        } catch (err: any) {
+          setModal({ show: true, type: 'error', message: err.message || 'Failed to send transaction' })
+        }
       }
-    }
+    })
+  }
 
     const handleDepositPool = async () => {
       if (!wallet) return
@@ -286,37 +268,43 @@ function App() {
         return
       }
       if (!poolAddress) {
-        setModal({ show: true, type: 'error', message: 'Please enter the pool contract address' })
+        setModal({ show: true, type: 'error', message: 'Staking pool is not yet available on this network.' })
         return
       }
 
-      setIsLoading(true)
-      try {
-        const amountInNano = (parseFloat(stakeAmount) * 1e9).toString()
+      setModal({
+        show: true,
+        type: 'confirm',
+        message: `Are you sure you want to deposit ${stakeAmount} THDR into Thunder System Staking Pool?`,
+        onConfirm: async () => {
+          setModal({ ...modal, show: false })
+          setIsLoading(true)
+          try {
+            const amountInNano = (parseFloat(stakeAmount) * 1e9).toString()
+            const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/call`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  private_key: wallet.privateKey,
+                  to: poolAddress,
+                  function: "deposit",
+                  amount: amountInNano
+                })
+            });
 
-        const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/call`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-              private_key: wallet.privateKey,
-              to: poolAddress,
-              function: "deposit",
-              amount: amountInNano
-            })
-        });
-
-        const data = await response.json()
-        if (data.error) throw new Error(data.error)
-
-        setModal({ show: true, type: 'success', message: data.output || 'Deposit successful!' })
-        setView('home')
-        setStakeAmount('')
-        setPoolAddress('')
-      } catch (err: any) {
-        setModal({ show: true, type: 'error', message: err.message || 'Failed to deposit' })
-      } finally {
-        setIsLoading(false)
-      }
+            const data = await response.json()
+            if (data.error) throw new Error(data.error)
+            
+            setModal({ show: true, type: 'success', message: `Successfully deposited ${stakeAmount} THDR into the pool!` })
+            setStakeAmount('')
+            setView('home')
+          } catch (err: any) {
+            setModal({ show: true, type: 'error', message: err.message || 'Failed to deposit into pool' })
+          } finally {
+            setIsLoading(false)
+          }
+        }
+      })
     }
 
   const handleMint = () => {
@@ -347,6 +335,47 @@ function App() {
       setTimeout(() => setCopied(false), 2000)
     }
   }
+
+    const renderModal = () => {
+    if (!modal.show) return null;
+    return (
+      <div className="modal-overlay" onClick={() => setModal({ ...modal, show: false })}>
+        <div className={`modal-content ${modal.type === 'error' ? 'error' : ''}`} onClick={e => e.stopPropagation()}>
+          <div className={`modal-icon-container ${modal.type === 'error' ? 'error' : ''}`}>
+            {modal.type === 'success' ? <Check size={32} /> : modal.type === 'error' ? <X size={32} /> : <AlertTriangle size={32} />}
+          </div>
+          <h3 className="modal-title">{modal.type === 'success' ? 'Transaction Success' : modal.type === 'error' ? 'Transaction Failed' : 'Confirm Transaction'}</h3>
+          <p className="modal-message">{modal.message}</p>
+          {modal.type === 'confirm' ? (
+            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+              <button
+                className="btn-outline"
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', background: 'transparent', color: 'white', cursor: 'pointer' }}
+                onClick={() => setModal({ ...modal, show: false })}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                style={{ flex: 1, padding: '12px', borderRadius: '12px', background: 'var(--cyan-dim)', border: '1px solid var(--cyan)', color: 'var(--cyan)', fontWeight: 600, cursor: 'pointer' }}
+                onClick={modal.onConfirm}
+              >
+                Confirm
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn-primary"
+              style={{ width: '100%', padding: '12px', marginTop: '24px', borderRadius: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'white', cursor: 'pointer' }}
+              onClick={() => setModal({ ...modal, show: false })}
+            >
+              Close
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   if (view === 'send') {
     return (
@@ -383,6 +412,7 @@ function App() {
             Confirm Send
           </button>
         </main>
+        {renderModal()}
       </div>
     )
   }
@@ -425,6 +455,7 @@ function App() {
             {copied ? 'Copied!' : 'Copy Address'}
           </button>
         </main>
+        {renderModal()}
       </div>
     )
   }
@@ -444,26 +475,15 @@ function App() {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Deploy a new pool or join an existing one by depositing THDR.</p>
           </div>
           
-          <button
-            className="btn-outline"
-            onClick={handleDeployPool}
-            style={{ width: '100%', padding: '14px', borderRadius: 12, background: 'var(--cyan-dim)', border: '1px solid var(--cyan)', color: 'var(--cyan)', fontWeight: 600, cursor: 'pointer', marginBottom: 24 }}>
-            Deploy New Staking Pool Contract
-          </button>
 
-          <hr style={{ borderColor: 'var(--border)', margin: '24px 0', opacity: 0.5 }} />
           
           <h3 style={{ fontSize: '1rem', marginBottom: 16 }}>Deposit into Pool</h3>
 
           <div className="form-group" style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Pool Contract Address (Auto-detected System Pool)</label>
-            <input
-              type="text"
-              placeholder="Detecting StakingPool..."
-              value={poolAddress}
-              onChange={e => setPoolAddress(e.target.value)}
-              style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'white', fontSize: '1rem' }}
-            />
+            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>Pool Name</label>
+            <div style={{ width: '100%', padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: poolAddress ? 'var(--cyan)' : 'var(--text-secondary)', fontSize: '1rem', fontWeight: 600 }}>
+              {poolAddress ? 'Thunder System Staking Pool' : 'Detecting StakingPool...'}
+            </div>
           </div>
 
           <div className="form-group" style={{ marginBottom: 24 }}>
@@ -485,6 +505,7 @@ function App() {
             Deposit to Pool
           </button>
         </main>
+        {renderModal()}
       </div>
     )
   }
@@ -524,6 +545,7 @@ function App() {
             Mint NFT
           </button>
         </main>
+        {renderModal()}
       </div>
     )
   }
@@ -892,25 +914,8 @@ function App() {
         </div>
       )}
 
-      {/* Futuristic Modal Overlay */}
-      {modal.show && (
-        <div className="modal-overlay" onClick={() => setModal({ ...modal, show: false })}>
-          <div className={`modal-content ${modal.type === 'error' ? 'error' : ''}`} onClick={e => e.stopPropagation()}>
-            <div className={`modal-icon-container ${modal.type === 'error' ? 'error' : ''}`}>
-              {modal.type === 'success' ? <Check size={32} /> : <X size={32} />}
-            </div>
-            <h3 className="modal-title">{modal.type === 'success' ? 'Transaction Success' : 'Transaction Failed'}</h3>
-            <p className="modal-message">{modal.message}</p>
-            <button
-              className="btn-primary"
-              style={{ width: '100%', padding: '12px' }}
-              onClick={() => setModal({ ...modal, show: false })}
-            >
-              Continue
-            </button>
-          </div>
-        </div>
-      )}
+      
+      {renderModal()}
     </div>
   )
 }
