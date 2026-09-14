@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use crate::crypto::{self, Address, Hash};
 use crate::storage::Storage;
 use crate::transaction::{Transaction, TransactionKind};
-use thunder_vm::{ThunderVm, ExecutionContext, Instruction};
+use thunder_vm::{ThunderVm, ExecutionContext};
 
 // ── Account ────────────────────────────────────────────────────────────────
 
