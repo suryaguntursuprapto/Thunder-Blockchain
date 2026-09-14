@@ -203,7 +203,7 @@ impl Node {
                 }
             }
 
-            let mut staking_pool_address = [0u8; 20];
+
             if let Some(source) = contract_source {
                 if let Ok(compiled) = thunder_lang::compile_source(&source) {
                     let bytecode = bincode::serialize(&compiled).unwrap();
@@ -218,7 +218,7 @@ impl Node {
                     deploy_tx.sign(&self.key_pair); 
                     self.chain[0].transactions.push(deploy_tx.clone());
                     
-                    staking_pool_address = state.derive_contract_address(&validator_addr, 1);
+                    let staking_pool_address = state.derive_contract_address(&validator_addr, 1);
                     
                     if let Err(e) = state.apply_transaction(&deploy_tx) {
                         tracing::error!("StakingPool deploy error: {:?}", e);
