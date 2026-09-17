@@ -423,13 +423,14 @@ impl RpcHandler {
                             "value": tx.value,
                             "gas_limit": tx.gas_limit,
                             "gas_price": tx.gas_price,
-                                                        "kind": match tx.kind {
-                                thunder_core::transaction::TransactionKind::Transfer => "Transfer".to_string(),
-                                thunder_core::transaction::TransactionKind::ContractDeploy => "ContractDeploy".to_string(),
-                                thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
-                                thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
-                                thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
-                            },
+                                "kind": match tx.kind {
+                                    thunder_core::transaction::TransactionKind::Transfer => "Transfer".to_string(),
+                                    thunder_core::transaction::TransactionKind::ContractDeploy => "ContractDeploy".to_string(),
+                                    thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
+                                    thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
+                                    thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
+                                    thunder_core::transaction::TransactionKind::SystemReward => "SystemReward".to_string(),
+                                },
                             "contract_address": if tx.kind == thunder_core::transaction::TransactionKind::ContractDeploy { Some(derive_contract_address(&tx.from, tx.nonce)) } else { None }
                         })
                     })
@@ -461,13 +462,14 @@ impl RpcHandler {
                             "value": tx.value,
                             "gas_limit": tx.gas_limit,
                             "gas_price": tx.gas_price,
-                                                        "kind": match tx.kind {
-                                thunder_core::transaction::TransactionKind::Transfer => "Transfer".to_string(),
-                                thunder_core::transaction::TransactionKind::ContractDeploy => "ContractDeploy".to_string(),
-                                thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
-                                thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
-                                thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
-                            },
+                                "kind": match tx.kind {
+                                    thunder_core::transaction::TransactionKind::Transfer => "Transfer".to_string(),
+                                    thunder_core::transaction::TransactionKind::ContractDeploy => "ContractDeploy".to_string(),
+                                    thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
+                                    thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
+                                    thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
+                                    thunder_core::transaction::TransactionKind::SystemReward => "SystemReward".to_string(),
+                                },
                             "contract_address": if tx.kind == thunder_core::transaction::TransactionKind::ContractDeploy { Some(derive_contract_address(&tx.from, tx.nonce)) } else { None },
                             "time": 0,
                             "timestamp": block.header.timestamp
@@ -547,6 +549,7 @@ impl RpcHandler {
                                 thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
                                 thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
                                 thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
+                                thunder_core::transaction::TransactionKind::SystemReward => "SystemReward".to_string(),
                             },
                             "contract_address": if tx.kind == thunder_core::transaction::TransactionKind::ContractDeploy { Some(derive_contract_address(&tx.from, tx.nonce)) } else { None },
                         "time": 0
@@ -617,6 +620,7 @@ impl RpcHandler {
                                 thunder_core::transaction::TransactionKind::ContractCall { .. } => "ContractCall".to_string(),
                                 thunder_core::transaction::TransactionKind::Stake => "Stake".to_string(),
                                 thunder_core::transaction::TransactionKind::Unstake => "Unstake".to_string(),
+                                thunder_core::transaction::TransactionKind::SystemReward => "SystemReward".to_string(),
                             },
                             "contract_address": contract_addr,
                                 "time": 0,
