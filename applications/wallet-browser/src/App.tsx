@@ -281,14 +281,13 @@ function App() {
           setIsLoading(true)
           try {
             const amountInNano = (parseFloat(stakeAmount) * 1e9).toString()
-            const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/call`, {
+            const response = await fetch(`${network.id === 'testnet' ? 'http://127.0.0.1:5050' : 'https://api.thunder-network.com'}/api/tx/stake`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                   private_key: wallet.privateKey,
-                  to: poolAddress,
-                  function: "deposit",
-                  amount: amountInNano
+                  amount: amountInNano,
+                  duration: 0
                 })
             });
 
