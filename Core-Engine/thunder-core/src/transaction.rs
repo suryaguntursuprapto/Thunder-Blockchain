@@ -26,6 +26,8 @@ pub enum TransactionKind {
     Stake,
     /// Unstake coins (withdraw from validator set).
     Unstake,
+    /// System-generated block reward transaction.
+    SystemReward,
 }
 
 // ── Transaction ────────────────────────────────────────────────────────────
@@ -186,6 +188,28 @@ impl Transaction {
         }
     }
 
+    /// Create a new **unsigned** system reward transaction.
+    pub fn new_system_reward(
+        chain_id: u64,
+        nonce: u64,
+        to: Address,
+        amount: u64,
+    ) -> Self {
+        Self {
+            chain_id,
+            nonce,
+            from: [0u8; 20], // System address
+            to,
+            value: amount,
+            data: Vec::new(),
+            gas_limit: 0,
+            gas_price: 0,
+            kind: TransactionKind::SystemReward,
+            signature: [0u8; 64],
+            public_key: [0u8; 32],
+        }
+    }
+
     // ── Hashing & Signing ──────────────────────────────────────────────
 
     /// Compute the bytes that are signed (everything except signature).
@@ -218,6 +242,11 @@ impl Transaction {
 
     /// Verify the attached signature.
     pub fn verify_signature(&self) -> bool {
+        // SystemReward transactions are unsigned system operations
+        if self.kind == TransactionKind::SystemReward {
+            return self.from == [0u8; 20] && self.signature == [0u8; 64];
+        }
+
         // Check that the from-address matches the public key.
         if self.from != crypto::address_from_public_key(&self.public_key) {
             return false;
@@ -236,6 +265,7 @@ impl Transaction {
             TransactionKind::ContractCall => 2,
             TransactionKind::Stake => 3,
             TransactionKind::Unstake => 4,
+            TransactionKind::SystemReward => 5,
         }
     }
 
