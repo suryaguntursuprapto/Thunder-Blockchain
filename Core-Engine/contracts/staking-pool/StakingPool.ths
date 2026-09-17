@@ -1,6 +1,8 @@
 contract StakingPool {
     state total_staked: u64;
     state stakes: map<u64, u64>;
+    state total_rewards_distributed: u64;
+    state validator_rewards: map<u64, u64>;
     
     fn deposit() {
         let sender = caller();
@@ -46,5 +48,13 @@ contract StakingPool {
 
     fn get_stake(user: u64) -> u64 {
         return self.stakes[user];
+    }
+
+    fn get_total_rewards() -> u64 {
+        return self.total_rewards_distributed;
+    }
+
+    fn get_validator_reward(user: u64) -> u64 {
+        return self.validator_rewards[user];
     }
 }
