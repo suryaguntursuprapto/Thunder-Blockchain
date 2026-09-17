@@ -66,6 +66,10 @@ enum NodeCommands {
         port: u16,
         #[arg(long)]
         bootnode: Option<String>,
+        #[arg(short, long)]
+        secret: Option<String>,
+        #[arg(long, default_value_t = 8080)]
+        rpc_port: u16,
     },
     /// Show node status.
     Status,
@@ -230,13 +234,40 @@ fn main() {
                 data_dir,
                 port,
                 bootnode,
+                secret,
+                rpc_port,
             } => {
                 println!("⚡ Thunder Blockchain");
                 println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 
-                let mut secret_bytes = [0u8; 32];
-                secret_bytes[31] = 1;
-                let key_pair = KeyPair::from_secret_bytes(&secret_bytes);
+                let key_pair = if let Some(sec) = secret {
+                    if sec.contains(' ') {
+                        match thunder_core::crypto::derive_keypair_from_seed(&sec, 0) {
+                            Ok(kp) => kp,
+                            Err(e) => {
+                                eprintln!("  ❌ Error deriving key from mnemonic: {}", e);
+                                std::process::exit(1);
+                            }
+                        }
+                    } else {
+                        let secret_bytes = match hex::decode(&sec) {
+                            Ok(b) if b.len() == 32 => {
+                                let mut arr = [0u8; 32];
+                                arr.copy_from_slice(&b);
+                                arr
+                            }
+                            _ => {
+                                eprintln!("  ❌ Invalid hex secret key.");
+                                std::process::exit(1);
+                            }
+                        };
+                        KeyPair::from_secret_bytes(&secret_bytes)
+                    }
+                } else {
+                    let mut secret_bytes = [0u8; 32];
+                    secret_bytes[31] = 1;
+                    KeyPair::from_secret_bytes(&secret_bytes)
+                };
                 let genesis_addr = address_to_hex(&key_pair.address());
                 println!("  Node Address : {}", genesis_addr);
                 println!("  Secret Key   : {}", hex::encode(key_pair.secret_bytes()));
@@ -305,8 +336,9 @@ fn main() {
                 });
 
                 // Mount the HTTP JSON-RPC Server
+                let genesis_addr = genesis_addr.clone();
                 rt.block_on(async {
-                    thunder_rpc::start_server(8080, 100, genesis_addr, shared_node).await;
+                    thunder_rpc::start_server(rpc_port, 100, genesis_addr, shared_node).await;
                 });
             }
             NodeCommands::Status => {
