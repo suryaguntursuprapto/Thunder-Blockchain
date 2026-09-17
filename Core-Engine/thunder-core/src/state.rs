@@ -149,6 +149,10 @@ impl WorldState {
 
         // 6. Type-specific logic.
         match tx.kind {
+            TransactionKind::SystemReward => {
+                // SystemReward logic is handled natively in node.rs during block production/verification
+                // Here we just bypass it
+            }
             TransactionKind::Transfer => {
                 let mut recipient = self.get_account(&tx.to);
                 recipient.balance = recipient.balance.saturating_add(tx.value);
@@ -399,6 +403,7 @@ impl WorldState {
             TransactionKind::ContractCall => 21_000,
             TransactionKind::Stake => 21_000,
             TransactionKind::Unstake => 21_000,
+            TransactionKind::SystemReward => 0, // System transactions are free
         }
     }
 }
