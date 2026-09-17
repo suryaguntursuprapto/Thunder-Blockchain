@@ -402,6 +402,8 @@ impl Node {
         let genesis_miner = self.chain.first().map(|b| b.header.validator).unwrap_or([0u8; 20]);
         let is_genesis_node = genesis_miner == self.key_pair.address();
         
+        let mut system_reward_txs = Vec::new();
+        
         if is_genesis_node {
             // Genesis Node Tokenomics: 50% Burned, 50% Distributed to other validators
             // The 50% is already set in `validator_reward` (combined_pool / 2)
@@ -416,11 +418,49 @@ impl Node {
             let mut state = self.state.write().unwrap();
             
             if total_other_stake > 0 {
+                let staking_pool_address = state.system_contracts.get("StakingPool").copied();
+                
                 for val in other_validators {
                     let proportion = (val.stake as u128 * validator_reward as u128) / total_other_stake as u128;
+                    let amount = proportion as u64;
+                    
                     let mut acc = state.get_account(&val.address);
-                    acc.balance = acc.balance.saturating_add(proportion as u64);
+                    acc.balance = acc.balance.saturating_add(amount);
                     state.set_account(&val.address, acc);
+                    
+                    // Synthesize SystemReward transaction for the block ledger
+                    let reward_tx = thunder_core::transaction::Transaction::new_system_reward(
+                        1, 
+                        0,
+                        val.address,
+                        amount
+                    );
+                    system_reward_txs.push(reward_tx);
+                    
+                    // Inject natively into StakingPool memory
+                    if let Some(pool_addr) = staking_pool_address {
+                        let mut pool_acc = state.get_account(&pool_addr);
+                        
+                        // Slot 2: total_rewards_distributed
+                        let key_slot2 = 2u64.to_le_bytes().to_vec();
+                        let mut total_rew = pool_acc.storage.get(&key_slot2)
+                            .map(|v| u64::from_le_bytes(v[..8].try_into().unwrap()))
+                            .unwrap_or(0);
+                        total_rew = total_rew.saturating_add(amount);
+                        pool_acc.storage.insert(key_slot2, total_rew.to_le_bytes().to_vec());
+                        
+                        // Slot 3: validator_rewards map
+                        let caller_key = u64::from_le_bytes(val.address[..8].try_into().unwrap());
+                        let map_key = 3u64 * 1_000_000 + caller_key;
+                        let key_slot3 = map_key.to_le_bytes().to_vec();
+                        let mut val_rew = pool_acc.storage.get(&key_slot3)
+                            .map(|v| u64::from_le_bytes(v[..8].try_into().unwrap()))
+                            .unwrap_or(0);
+                        val_rew = val_rew.saturating_add(amount);
+                        pool_acc.storage.insert(key_slot3, val_rew.to_le_bytes().to_vec());
+                        
+                        state.set_account(&pool_addr, pool_acc);
+                    }
                 }
             }
             // If no other validators, the reward is effectively burned (not assigned to anyone).
@@ -430,7 +470,46 @@ impl Node {
             let mut val_account = state.get_account(&self.key_pair.address());
             val_account.balance = val_account.balance.saturating_add(validator_reward);
             state.set_account(&self.key_pair.address(), val_account);
+            
+            // Synthesize SystemReward transaction for the block ledger
+            let reward_tx = thunder_core::transaction::Transaction::new_system_reward(
+                1, 
+                0,
+                self.key_pair.address(),
+                validator_reward
+            );
+            system_reward_txs.push(reward_tx);
+            
+            let staking_pool_address = state.system_contracts.get("StakingPool").copied();
+            
+            // Inject natively into StakingPool memory
+            if let Some(pool_addr) = staking_pool_address {
+                let mut pool_acc = state.get_account(&pool_addr);
+                
+                // Slot 2: total_rewards_distributed
+                let key_slot2 = 2u64.to_le_bytes().to_vec();
+                let mut total_rew = pool_acc.storage.get(&key_slot2)
+                    .map(|v| u64::from_le_bytes(v[..8].try_into().unwrap()))
+                    .unwrap_or(0);
+                total_rew = total_rew.saturating_add(validator_reward);
+                pool_acc.storage.insert(key_slot2, total_rew.to_le_bytes().to_vec());
+                
+                // Slot 3: validator_rewards map
+                let caller_key = u64::from_le_bytes(self.key_pair.address()[..8].try_into().unwrap());
+                let map_key = 3u64 * 1_000_000 + caller_key;
+                let key_slot3 = map_key.to_le_bytes().to_vec();
+                let mut val_rew = pool_acc.storage.get(&key_slot3)
+                    .map(|v| u64::from_le_bytes(v[..8].try_into().unwrap()))
+                    .unwrap_or(0);
+                val_rew = val_rew.saturating_add(validator_reward);
+                pool_acc.storage.insert(key_slot3, val_rew.to_le_bytes().to_vec());
+                
+                state.set_account(&pool_addr, pool_acc);
+            }
         }
+        
+        // Append all system reward transactions to the block
+        block_txs.extend(system_reward_txs);
 
         let state_root = self.state.read().unwrap().compute_state_root();
 
